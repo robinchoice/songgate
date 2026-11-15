@@ -13,7 +13,7 @@ function noteError(method: string, path: string, status: number | string) {
   recentErrors.length = Math.min(recentErrors.length, 5);
 }
 
-export class ApiError extends Error {}
+class ApiError extends Error {}
 
 async function call<T>(method: 'GET' | 'POST', path: string, body: unknown, signal: AbortSignal | null = null): Promise<T> {
   try {

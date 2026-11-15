@@ -5,14 +5,15 @@
   "workspaces": ["packages/*", "apps/*"],
   "scripts": {
     "dev": "bun run --filter './apps/*' dev",
-    "check": "biome lint && bun run --filter '*' check",
+    "check": "scripts/check-comments.sh && biome lint && knip && bun run --filter '*' check",
     "test": "bun run --filter '*' test",
     "build": "bun run --filter '*' build"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
     "@types/bun": "^1.4.2",
-    "typescript": "^6.0.3",
-    "@biomejs/biome": "^2.5.15"
+    "knip": "~6.44.2",
+    "typescript": "^6.0.3"
   },
   "overrides": {
     "@esbuild-kit/core-utils": {

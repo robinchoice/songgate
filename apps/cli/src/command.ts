@@ -1,7 +1,7 @@
 import type { Client } from './client';
 import type { Locale, Messages } from '@app/shared';
 
-export type Env = Record<string, string | undefined>;
+type Env = Record<string, string | undefined>;
 
 // What the CLI needs from the outside, so the tests run it in-process
 export type Io = {
@@ -12,7 +12,7 @@ export type Io = {
   stdin: () => Promise<string>;
 };
 
-export type Context = {
+type Context = {
   api: Client;
   url: string;
   values: Record<string, unknown>;

@@ -94,7 +94,7 @@ export function musicSource(input: string): MusicLink {
   return [...links.values()][0]!;
 }
 
-export const searchYouTube: MusicSearch = async (query, signal) => {
+const searchYouTube: MusicSearch = async (query, signal) => {
   const results = await (await youtube(signal)).music.search(query, { type: 'song' });
   return (results.songs?.contents ?? []).flatMap(item =>
     item.id && item.title && item.artists ? [{

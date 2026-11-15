@@ -6,7 +6,7 @@ import { convert } from './commands/convert';
 import { DEFAULT_URL, SLUG } from './config';
 
 // Every command of the CLI. A new one goes in here (AGENTS.md, „CLI“).
-export const commands: Record<string, Command> = { convert };
+const commands: Record<string, Command> = { convert };
 
 const globalOptions = {
   json: { type: 'boolean' },

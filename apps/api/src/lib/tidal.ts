@@ -25,7 +25,7 @@ export async function tidalCatalog(path: string, params: [string, string][], cur
 }
 
 // The included resources a relationship points to, in its order
-export function related(doc: TidalDocument, item: Resource, name: string) {
+function related(doc: TidalDocument, item: Resource, name: string) {
   const data = item.relationships[name]?.data;
   return (Array.isArray(data) ? data : data ? [data] : [])
     .flatMap(link => doc.included.filter(other => other.id === link.id && other.type === link.type));

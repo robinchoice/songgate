@@ -1,5 +1,5 @@
 // Renders the link preview that WhatsApp, Signal and co. show for shared links,
-// 1200×630 per language into static/og-image-<locale>.png (starter DESIGN.md,
+// 1200×630 per language into static/og-image-<locale>.png (starter design rules,
 // "Vorschaubild"), and the same at 1024×500 as the Google Play feature graphic in
 // docs/store/play/<locale>/feature-graphic.png. Rerun after changing APP_NAME,
 // APP_BAND, the tagline or the tile in static/favicon.svg, and commit the pictures.

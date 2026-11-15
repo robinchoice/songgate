@@ -1,4 +1,4 @@
-// Family colour band, see DESIGN.md. Stages 1 to 7: glow for gradient surfaces
+// Family colour band, see the design rules in robinchoice/starter. Stages 1 to 7: glow for gradient surfaces
 // and dark backgrounds, deep for text and thin lines on light backgrounds. The
 // mobile app keeps a copy in lib/core/brand.dart.
 export const GLOW = ['#F2545B', '#FB8C45', '#F2C14E', '#6CCF8E', '#46BFE0', '#8E92F8', '#C39BF2'];

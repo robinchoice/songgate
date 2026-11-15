@@ -239,7 +239,7 @@ export function showScore(a: string, b: string) {
 }
 const byScore = <T>(items: T[], score: (item: T) => number) => items.map(item => ({ item, rank: score(item) })).filter(({ rank }) => rank > 0).toSorted((a, b) => b.rank - a.rank).map(({ item }) => item);
 
-// 2 for the same title, 1 when one title contains the other ("#12 Title", "Title | Show");
+// 2 for the same title, 1 when one title contains the other ("12. Title", "Title | Show");
 // a release date more than three days apart rules a candidate out, reruns get new dates
 export function episodeScore(source: Podcast) {
   const title = normalize(source.title);

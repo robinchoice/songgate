@@ -1,0 +1,17 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["apps/mobile/tool/*.mjs"]
+    },
+    "apps/api": {
+      "entry": ["src/**/*.test.ts"]
+    },
+    "apps/cli": {
+      "entry": ["src/main.ts", "src/**/*.test.ts"]
+    },
+    "apps/web": {
+      "entry": ["src/env.ts"]
+    }
+  }
+}
