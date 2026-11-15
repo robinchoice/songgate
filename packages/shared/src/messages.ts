@@ -52,7 +52,6 @@ const de = {
   appStore: 'Laden im App Store',
   googlePlay: 'Jetzt bei Google Play',
   openInBrowser: 'Im Browser öffnen',
-  otherPhone: (device: 'ios' | 'android') => (device === 'ios' ? 'Android?' : 'iPhone?'),
 
   // Web: converter on /app
   linkLabel: 'Link zu Song, Album oder Podcast',
@@ -227,7 +226,6 @@ const en: Messages = {
   appStore: 'Download on the App Store',
   googlePlay: 'Get it on Google Play',
   openInBrowser: 'Open in the browser',
-  otherPhone: (device) => (device === 'ios' ? 'Android?' : 'iPhone?'),
 
   linkLabel: 'Link to a song, album or podcast',
   linkPlaceholder: 'Link from Spotify & co.',

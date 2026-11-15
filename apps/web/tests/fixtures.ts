@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import type { Song } from '@app/shared';
 
 export const savior: Song = {
@@ -21,4 +21,17 @@ export async function findSavior(page: Page) {
   await page.locator('#song').fill('https://youtu.be/UijW9hGpnzc');
   await page.locator('#song').press('Enter');
   await expect(page.getByRole('heading', { name: 'Savior' })).toBeVisible();
+}
+
+// Console errors fail the test, CSP violations included
+export function failOnConsoleErrors() {
+  let errors: string[] = [];
+  test.beforeEach(({ page }) => {
+    errors = [];
+    page.on('console', msg => {
+      if (msg.type() === 'error') errors.push(msg.text());
+    });
+    page.on('pageerror', err => errors.push(err.message));
+  });
+  test.afterEach(() => expect(errors).toEqual([]));
 }

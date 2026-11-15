@@ -7,10 +7,8 @@
 
   let { data } = $props();
   const locale = $derived(page.data.locale);
+  const other = $derived(data.device === 'ios' ? { question: 'Android?', store: 'Google Play', url: PLAY_STORE_URL } : { question: 'iPhone?', store: 'App Store', url: APP_STORE_URL });
 </script>
-
-{#snippet appStore()}<a class="badge" href={APP_STORE_URL} rel="noreferrer"><img src="/badges/app-store-{locale}.svg" alt={t().appStore} height="54" /></a>{/snippet}
-{#snippet googlePlay()}<a class="badge" href={PLAY_STORE_URL} rel="noreferrer"><img src="/badges/google-play-{locale}.png" alt={t().googlePlay} height="54" /></a>{/snippet}
 
 <div class="shell">
   <header><a href="/" class="brand"><img class="brand-icon" src="/favicon.svg" alt="" width="30" height="30" /> Songgate</a></header>
@@ -20,11 +18,11 @@
     <p class="lede">{t().lede}</p>
     <div class="services" aria-hidden="true">{#each serviceOrder.filter(platform => platform !== 'amazonMusic') as platform (platform)}<Logo {platform} size={26} />{/each}</div>
     <nav class="badges" aria-label={t().getApp}>
-      {#if data.device !== 'android'}{@render appStore()}{/if}
-      {#if data.device !== 'ios'}{@render googlePlay()}{/if}
+      {#if data.device !== 'android'}<a class="badge" href={APP_STORE_URL} rel="noreferrer"><img src="/badges/app-store-{locale}.svg" alt={t().appStore} height="54" /></a>{/if}
+      {#if data.device !== 'ios'}<a class="badge" href={PLAY_STORE_URL} rel="noreferrer"><img src="/badges/google-play-{locale}.png" alt={t().googlePlay} height="54" /></a>{/if}
     </nav>
     <a class="web" href="/app">{t().openInBrowser} →</a>
-    {#if data.device}<p class="other">{t().otherPhone(data.device)} <a href={data.device === 'ios' ? PLAY_STORE_URL : APP_STORE_URL} rel="noreferrer">{data.device === 'ios' ? 'Google Play' : 'App Store'}</a></p>{/if}
+    {#if data.device}<p class="other">{other.question} <a href={other.url} rel="noreferrer">{other.store}</a></p>{/if}
   </main>
   <PleasanceFooter />
 </div>

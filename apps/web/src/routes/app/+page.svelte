@@ -32,7 +32,7 @@
     canPaste = typeof navigator.clipboard?.readText === 'function';
     const region = navigator.language.split('-')[1]?.toUpperCase();
     if (countries.some(code => code === region)) country = region!;
-    // Bookmarklets and shortcuts open /?q=<link> to convert right away
+    // Bookmarklets and shortcuts open /?q=<link>, redirected here as /app?q=<link> to convert right away
     const shared = new URL(location.href).searchParams.get('q')?.trim();
     if (shared) {
       input = shared.slice(0, 4096);

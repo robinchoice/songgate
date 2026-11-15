@@ -1,19 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { savior } from './fixtures.ts';
+import { failOnConsoleErrors, savior } from './fixtures.ts';
 
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 const ANDROID = 'Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36';
 
-// Console errors fail the test, CSP violations included
-let errors: string[] = [];
-test.beforeEach(({ page }) => {
-  errors = [];
-  page.on('console', msg => {
-    if (msg.type() === 'error') errors.push(msg.text());
-  });
-  page.on('pageerror', err => errors.push(err.message));
-});
-test.afterEach(() => expect(errors).toEqual([]));
+failOnConsoleErrors();
 
 const stores = (page: import('@playwright/test').Page) => page.getByRole('navigation', { name: 'Songgate als App' }).getByRole('link');
 
