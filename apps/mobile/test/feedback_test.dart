@@ -129,7 +129,47 @@ void main() {
           .first,
       'Tidal wäre schön',
     );
-    await tester.pump();
+    // Narrow, wide, portrait and flat landscape with the keyboard open: the
+    // draft stays and Send can be scrolled above the keyboard
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    for (final size in const [
+      Size(320, 700),
+      Size(1024, 768),
+      Size(768, 1024),
+      Size(700, 400),
+    ]) {
+      tester.view.physicalSize = size;
+      tester.view.viewInsets = const FakeViewPadding(bottom: 160);
+      tester.view.padding = const FakeViewPadding(left: 24, right: 24);
+      tester.view.viewPadding = const FakeViewPadding(
+        left: 24,
+        right: 24,
+        bottom: 24,
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      final field = find
+          .descendant(
+            of: find.byType(BottomSheet),
+            matching: find.byType(TextField),
+          )
+          .first;
+      expect(
+        tester.widget<TextField>(field).controller!.text,
+        'Tidal wäre schön',
+      );
+      await tester.dragUntilVisible(
+        find.text('Senden'),
+        find.byType(ListView).last,
+        const Offset(0, -100),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.getRect(find.text('Senden')).bottom,
+        lessThanOrEqualTo(size.height - 160),
+      );
+    }
     await tester.tap(find.text('Senden'));
     await tester.pumpAndSettle();
     expect(find.text('Danke für dein Feedback!'), findsOneWidget);

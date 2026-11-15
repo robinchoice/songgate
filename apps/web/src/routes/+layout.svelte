@@ -30,7 +30,7 @@
   {/if}
   <meta name="twitter:card" content="summary_large_image" />
 </svelte:head>
-<div style:--gradient={bandGradient(APP_BAND, GLOW)} style:--accent={bandColor((APP_BAND.from + APP_BAND.to) / 2, GLOW)}>
+<div class="root" style:--gradient={bandGradient(APP_BAND, GLOW)} style:--accent={bandColor((APP_BAND.from + APP_BAND.to) / 2, GLOW)}>
   {@render children()}
   {#if browser}<Feedback />{/if}
   <Toasts />
@@ -67,6 +67,8 @@
     --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
     --spectrum: linear-gradient(90deg, #F2545B, #FB8C45, #F2C14E, #6CCF8E, #46BFE0, #8E92F8, #C39BF2);
   }
+  /* viewport-fit=cover in app.html: notch, home indicator and rounded corners stay clear */
+  .root { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
   :global(*) { box-sizing: border-box; }
   :global(body) { margin: 0; background: var(--bg); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, sans-serif; line-height: 1.55; }
   :global(h1), :global(h2), :global(h3), :global(.brand), :global(.step-number) { font-family: var(--font-display); font-weight: 780; font-stretch: 80%; font-variation-settings: 'wdth' 80, 'wght' 780; letter-spacing: -0.035em; line-height: 1.03; }
