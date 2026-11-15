@@ -8,7 +8,7 @@ import { type BrowserContextOptions, chromium } from '@playwright/test';
 const BASE = process.argv[2] ?? 'http://localhost:5173';
 const OUT = new URL('../../docs/screenshots/', import.meta.url);
 
-const PAGES: Record<string, string> = { home: '/' };
+const PAGES: Record<string, string> = { home: '/', app: '/app' };
 const LOCALES = ['de', 'en'];
 const DEVICES: Record<string, BrowserContextOptions> = {
   desktop: { viewport: { width: 1440, height: 900 } },

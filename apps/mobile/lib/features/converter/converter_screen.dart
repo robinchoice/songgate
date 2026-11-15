@@ -881,6 +881,7 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen> {
           ],
         ),
       ),
+      const PleasanceFooter(),
     ];
   }
 

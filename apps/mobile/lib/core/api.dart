@@ -89,10 +89,11 @@ class Api {
         _noteError('/song', response.statusCode);
         String? error;
         try {
-          error =
-              (jsonDecode(utf8.decode(response.bodyBytes))
-                      as Map<String, dynamic>)['error']
-                  as String?;
+          if (jsonDecode(utf8.decode(response.bodyBytes)) case {
+            'error': final String message,
+          }) {
+            error = message;
+          }
         } on FormatException {
           // Not from our API, e.g. a proxy page
         }
@@ -127,10 +128,11 @@ class Api {
       if (response.statusCode >= 400) {
         String? error;
         try {
-          error =
-              (jsonDecode(utf8.decode(response.bodyBytes))
-                      as Map<String, dynamic>)['error']
-                  as String?;
+          if (jsonDecode(utf8.decode(response.bodyBytes)) case {
+            'error': final String message,
+          }) {
+            error = message;
+          }
         } on FormatException {
           // Not from our API, e.g. a proxy page
         }
