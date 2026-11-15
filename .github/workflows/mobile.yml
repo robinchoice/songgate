@@ -59,9 +59,12 @@ jobs:
           cache: true
       - run: flutter build apk --debug --dart-define=API_URL=https://example.invalid
 
-  ios-build:
+  # Unsigned, no secrets or uploads, on every run
+  ios-compile:
     needs: check
     runs-on: xcode-27
+    permissions:
+      contents: read
     env:
       DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
     steps:
@@ -69,7 +72,7 @@ jobs:
       - name: Verify stable Xcode and iOS SDK
         run: |
           xcodebuild -version
-          test "$(xcodebuild -version | head -n1)" = "Xcode 27.1"
+          test "$(xcodebuild -version)" = $'Xcode 27.1\nBuild version 27A9275'
           test "$(xcrun --sdk iphoneos --show-sdk-version)" = "27.1"
       - uses: subosito/flutter-action@v2
         with:
@@ -80,10 +83,11 @@ jobs:
         run: |
           swiftc -parse-as-library ios/ShareExtension/ShareModel.swift test/share_targets.swift -o "$RUNNER_TEMP/share-targets-test"
           "$RUNNER_TEMP/share-targets-test"
-      - run: flutter build ios --release --no-codesign --dart-define=API_URL=https://example.invalid
+      - name: Compile iOS release without signing
+        run: flutter build ios --release --no-codesign --dart-define=API_URL=https://example.invalid --build-number=$GITHUB_RUN_NUMBER
 
   ios:
-    needs: [check, ios-build]
+    needs: [check, ios-compile]
     # Skipped until the variables API_URL, ASC_KEY_ID and ASC_ISSUER_ID and the secret ASC_KEY_P8 exist
     if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) && vars.API_URL != '' && vars.ASC_KEY_ID != ''
     runs-on: xcode-27
@@ -95,7 +99,7 @@ jobs:
       - name: Verify stable Xcode and iOS SDK
         run: |
           xcodebuild -version
-          test "$(xcodebuild -version | head -n1)" = "Xcode 27.1"
+          test "$(xcodebuild -version)" = $'Xcode 27.1\nBuild version 27A9275'
           test "$(xcrun --sdk iphoneos --show-sdk-version)" = "27.1"
 
       - uses: subosito/flutter-action@v2
