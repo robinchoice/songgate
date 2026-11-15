@@ -3,11 +3,13 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../config.dart';
+import 'app_dock.dart';
 import 'locale.dart';
 
-// Signal colours from starter's DESIGN.md: the same in every product, never the product colour.
+// Signal colours from starter's design rules (robinchoice/starter, DESIGN): the same in every product, never the product colour.
 // Filled counters take glow, text and lines on the light ground take deep.
 const errorGlow = Color(0xFFF2545B);
 const errorDeep = Color(0xFFB3262D);
@@ -222,88 +224,76 @@ class SonggateBrand extends StatelessWidget {
   );
 }
 
+void _openPleasance() => launchUrl(
+  Uri.parse('https://pleasance.org'),
+  mode: LaunchMode.externalApplication,
+);
+
+/// Sender line: made by Pleasance, signed with the wordmark over the family
+/// band that marks where this app sits and opens the app dock.
 class PleasanceFooter extends ConsumerWidget {
   const PleasanceFooter({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Container(
-    margin: const EdgeInsets.only(top: 28),
-    padding: const EdgeInsets.symmetric(vertical: 18),
-    decoration: const BoxDecoration(
-      border: Border(top: BorderSide(color: hairline)),
-    ),
-    child: Row(
-      children: [
-        Flexible(
-          child: Text(
-            ref.watch(messagesProvider).madeBy,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ),
-        const SizedBox(width: 8),
-        SvgPicture.asset(
-          'assets/pleasance-wordmark.svg',
-          width: 76,
-          height: 14,
-          colorFilter: const ColorFilter.mode(text, BlendMode.srcIn),
-          semanticsLabel: 'Pleasance',
-        ),
-        const SizedBox(width: 16),
-        const Expanded(
-          child: Align(alignment: Alignment.centerRight, child: _BandLine()),
-        ),
-      ],
-    ),
-  );
-}
-
-class _BandLine extends StatelessWidget {
-  const _BandLine();
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 120,
-    height: 9,
-    child: LayoutBuilder(
-      builder: (context, constraints) => Stack(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = ref.watch(messagesProvider);
+    return Container(
+      margin: const EdgeInsets.only(top: 28),
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: hairline)),
+      ),
+      alignment: Alignment.centerLeft,
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
         children: [
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 3,
-            height: 3,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.all(Radius.circular(2)),
-                gradient: LinearGradient(
-                  colors: [
-                    for (final color in glow)
-                      Color.lerp(color, Colors.black, 0.55)!,
+          // Sender and wordmark lead to pleasance.org, the band below is the app dock
+          Semantics(
+            link: true,
+            label: '${t.madeBy} Pleasance',
+            excludeSemantics: true,
+            onTap: _openPleasance,
+            child: GestureDetector(
+              onTap: _openPleasance,
+              child: Text(
+                t.madeBy,
+                style: const TextStyle(
+                  color: muted,
+                  fontFamily: displayFont,
+                  fontSize: 14,
+                  height: 1,
+                  fontWeight: FontWeight.w600,
+                  fontVariations: [
+                    FontVariation('wdth', 80),
+                    FontVariation('wght', 650),
                   ],
                 ),
               ),
             ),
           ),
-          Positioned(
-            left: constraints.maxWidth * (appBand.from - 1) / 6,
-            width: math.max(
-              9,
-              constraints.maxWidth * (appBand.to - appBand.from) / 6,
-            ),
-            top: 0,
-            height: 9,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: bandGradient(glow),
-                borderRadius: const BorderRadius.all(Radius.circular(5)),
-                boxShadow: const [
-                  BoxShadow(color: background, spreadRadius: 2),
-                ],
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _openPleasance,
+                child: ExcludeSemantics(
+                  child: SvgPicture.asset(
+                    'assets/pleasance-wordmark.svg',
+                    width: signatureWidth,
+                    height: 14,
+                    colorFilter: const ColorFilter.mode(text, BlendMode.srcIn),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(height: 3),
+              const AppDock(),
+            ],
           ),
         ],
       ),
-    ),
-  );
+    );
+  }
 }

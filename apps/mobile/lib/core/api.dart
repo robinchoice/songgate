@@ -8,12 +8,16 @@ import '../config.dart';
 import '../features/converter/conversion.dart';
 import 'messages.dart';
 
-// Kept for the app's lifetime, so the language set by localeProvider stays
-final apiProvider = Provider((ref) {
+final httpClientProvider = Provider((ref) {
   final client = http.Client();
   ref.onDispose(client.close);
-  return Api(client, apiUrl);
+  return client;
 });
+
+// Kept for the app's lifetime, so the language set by localeProvider stays
+final apiProvider = Provider(
+  (ref) => Api(ref.watch(httpClientProvider), apiUrl),
+);
 
 /// The last failed calls, newest first. Feedback sends them along.
 final recentErrors = <String>[];

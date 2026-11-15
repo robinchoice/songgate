@@ -11,7 +11,7 @@
 
 ```sh
 cp -n .env.example .env && docker compose up -d   # Postgres on port 5439 for the API tests
-bun install --frozen-lockfile && bun run check && bun run test   # test builds the web and tests the build, plus the CLI against the API
+bun install --frozen-lockfile && bun run check && bun run test   # check: comments, Biome, knip, types; test builds the web and tests the build, plus the CLI against the API
 cd apps/cli && bun run build   # when apps/cli changed, compiles build/songgate
 cd apps/mobile && flutter pub get && flutter analyze && flutter test && node --test tool/testflight.test.mjs   # when apps/mobile changed
 # On macOS (also runs in mobile.yml):
@@ -22,13 +22,18 @@ The browser tests start the API and the production build of the web on their own
 
 `bun run test` gives the API and browser suites their own empty temporary database on the server from `DATABASE_URL`. The user needs `CREATEDB` (local Compose and CI already have it). The runner deletes only that database on success, failure or SIGINT/SIGTERM; direct `bun test` or `playwright test` calls bypass isolation.
 
+- Unused code: knip (in `bun run check`) reports unused files, dependencies and exports. Exports only tests use count as used. Entries knip cannot find on its own (tests, `apps/mobile/tool/*.mjs`, the SvelteKit env file) are `entry` in `knip.json`. Fix findings, solve false alarms through the configuration, never with `ignore`.
+- Regression tests: a bug fix comes with a test that fails without the fix, named after the symptom (`test('regression: …')`, `testWidgets('regression: …')`), so nobody deletes it as redundant. No ticket numbers.
+- Comments state the rule, not its history; the history is in git. `scripts/check-comments.sh` (in `bun run check`) blocks in comments under `apps/` and `packages/` (tests excluded) what a reader cannot resolve in the repo: issue and PR numbers (`#12`), paths outside the repo (`~/`, `/home/`), `.md` files that do not exist in the repo, Savor, thread and session IDs. History narration („previously“, „no longer needed“, „früher“) is only a warning. Solve false alarms by rewording.
+- Layout changes: also apply the device criteria in „Window sizes, tablets and foldables“. Automated resize tests do not replace a device or simulator check; name open platform checks in the conclusion.
+
 ## Deploy
 
 - A push to `main` runs `ci.yml`: checks, builds the images, then deploys them through the Coolify API.
 - After a successful deploy, `screenshots` photographs the public home page in fresh browser contexts (German and English, desktop 1440×900 and phone 390×844 at double density). No login, shared links, query parameters or user data. The starter script `apps/web/screenshots.ts` replaces `docs/screenshots/` with WebP images, so only the current set is kept. Run locally with `bun run screenshots [url]` in `apps/web`.
 - Changed screenshots are committed to `main` by `github-actions[bot]` with `[skip ci]` to prevent deploy loops. Fetch before pushing. Only after the screenshots succeed, the job sends `prototype-deployed` (`client_payload: {slug, sha}`) to `robinchoice/pleasance` using the existing `PLEASANCE_DISPATCH_TOKEN` secret, scoped to that receiver. Without the secret only the dispatch is skipped.
 - Pushes that touch `apps/mobile` also run `mobile.yml`, which uploads an iOS build to TestFlight and builds upload-key-signed Android AAB and APK artifacts (kept for 90 days). Android release CI requires the `ANDROID_KEYSTORE_*`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` secrets. Robin confirmed `org.pleasance.songgate` on 22 October 2026. After he uploads the first AAB manually and grants the service account access, set `PLAY_SERVICE_ACCOUNT_JSON` and `PLAY_UPLOAD=true` to upload subsequent builds to Play internal testing. Never enable this before package-name confirmation; no production promotion runs automatically. Job `testflight` (`apps/mobile/tool/testflight.mjs`) gives every build to the internal group „MusicLink Internal“ and only turns green once the build is `IN_BETA_TESTING` (`READY_FOR_BETA_TESTING` while the internal groups have no testers) and visible in that group; an invalid build, missing export compliance or an hour without visibility fail it.
-- Both iOS jobs use the standard `xcode-27` runner, pin `/Applications/Xcode_27.1.app` through `DEVELOPER_DIR` and verify Xcode 27.1 plus the iOS 27.1 SDK. No automatic latest-Xcode selection: the image also carries release candidates. A manual `mobile.yml` run on a work branch performs checks and unsigned native builds only; signing and uploads require `main` or a release tag. Compilation does not confirm Duo poses, iPad multitasking or native sharing on devices.
+- Every `mobile.yml` run also compiles iOS unsigned in job `ios-compile` (`flutter build ios --release --no-codesign`, placeholder API, no secrets or uploads), the only native iOS check from Linux. It and the release job `ios` use the standard `xcode-27` runner, pin `/Applications/Xcode_27.1.app` through `DEVELOPER_DIR` and verify stable Xcode 27.1 (build 27A9275) plus the iOS 27.1 SDK. The runner image is a public preview, Xcode itself is stable. No automatic latest-Xcode selection: the image also carries release candidates. A manual `mobile.yml` run on a work branch performs checks and unsigned native builds only; signing and uploads require `main` or a release tag. Compilation does not confirm Duo poses, iPad multitasking or native sharing on devices.
 - External testers (group „MusicLink V1“) don't get every build: TestFlight mails a group's testers for each build it is given. Only the build of a pushed release tag `v*` goes there and is submitted for the beta review, and only after Robin's yes. `gh workflow run mobile.yml` stays internal, even on a tag. A beta review state other than submitted, in review or approved fails the job. When a push changes something app users notice (new feature, important fix), the agent's conclusion asks whether the build goes to the external testers too (skill `push-deploy`). `git tag v<version> && git push origin v<version>` builds iOS and Android again and releases that build. An already uploaded build: `node tool/testflight.mjs [--quiet] <build number> "MusicLink Internal" "MusicLink V1"` in `apps/mobile` with `ASC_*` from `~/.secrets`; at least one internal group is required, external groups follow only once the build is visible internally.
 - Store status, read-only: `with-secret ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 GOOGLE_MUSICLINK_PLAY_KEY_BASE64 -- node apps/mobile/tool/store-status.mjs` lists App Store versions, availability per territory (`TRADER_STATUS_NOT_PROVIDED` = blocked in the EU), the newest TestFlight build and the Play tracks with their production countries.
 - Update requirement: app builds send `X-App-Platform` and `X-App-Build` (the CI run number, `BUILD_NUMBER`). Below `MIN_BUILD_IOS`/`MIN_BUILD_ANDROID` (Coolify, empty = no minimum) the API answers 426 except for feedback; the app then shows only the update screen with the store link, the share extension the message. Raise a minimum only once a newer build is live in that store. Web and builds older than the update screen send nothing and are never blocked.
@@ -36,8 +41,22 @@ The browser tests start the API and the production build of the web on their own
 - Verify: `gh run watch`. The deploy job only turns green once `https://songgate.app/api/health` reports the commit as `revision`.
 - Pushes to any branch and PRs from forks also run `secrets.yml`, the secret scan (see „Secret scan“).
 
+## Window sizes, tablets and foldables
+
+The layout follows the available window width, without device detection: web pages and the app's screens keep their content column, the footer wraps. The web sets `viewport-fit=cover`; the root in `+layout.svelte` and the feedback panel and bug button in `Feedback.svelte` keep to the safe areas, the app's feedback sheet and bug button likewise. Resizing replaces neither the route nor a draft.
+
+Before a device release, with test data only:
+
+- Use converter, results, settings and an open feedback form in narrow and wide windows, portrait and landscape and Split View; resize and fold/unfold several times. Route, entered link and feedback draft must stay.
+- With the keyboard open, also in flat landscape, scroll to the field and to Send; no horizontal overflow, nothing hidden by the camera cut-out, system bars or home indicator. On foldables also check the hinge in the supported postures.
+- Automated: `bun run check && bun run test` covers Chromium resizes with a kept converter and feedback draft (`feedback.test.ts`); in `apps/mobile` `flutter test` covers feedback resizes with simulated safe areas and keyboard. The test windows are layout stress cases, not claimed device sizes.
+- Also check on iPad (Safari and the app), an Android tablet or foldable (emulator and real device) and iPhone Duo (built with Xcode 27.1 or newer, Device Hub for postures). Widget and Chromium tests and a green CI build do not replace this; name untested devices.
+
+Background: [Android: Adaptive do’s and don’ts](https://developer.android.com/develop/adaptive-apps/guides/adaptive-dos-and-donts), [Flutter: Large screens](https://docs.flutter.dev/ui/adaptive-responsive/large-screens). A new multi-column or navigation concept needs mockup approval first (`prototyp-start`).
+
 ## Pitfalls
 
+- App dock: the band under the Pleasance wordmark in the footer (web `AppDock.svelte` with `lib/dock.ts`, app `lib/core/app_dock.dart` with `dock.dart`) pops up the Pleasance apps from https://pleasance.org/apps.json, loaded on first hover or tap without cookies or referrer and parsed by `pleasanceAppsSchema` (web links only). The web CSP allows `https://pleasance.org` in `connect-src`; without the list the band stays a line.
 - Gitleaks 8.30.1 reads the checkout's `.gitleaksignore` in addition to `--gitleaks-ignore-path`. The workflow replaces it with `CONFIG_REF`'s version too; fork PRs use the base commit's config and ignores.
 - Correlated subselects in `sql` templates: in a single-table select Drizzle renders columns without table names, including inside templates. `exists (select 1 from ${subs} where ${subs.userId} = ${users.id})` becomes `where "user_id" = "id"`, silently referring to the subselect's ID. Use a join or `alias()`, or two simple queries.
 
@@ -136,3 +155,5 @@ Android symbols are separated into `aab/` for Play installations and `apk/` for 
 - Magic-link verification limits and ALTCHA before login mails do not apply: Songgate has no accounts or login routes and sends only feedback notifications.
 - The CLI has no `login`, `whoami`, `logout`, session file or exit code 3: Songgate has no accounts, `convert` needs none. Its tests need no database, they run with plain `bun test`.
 - Biome runs the three rules against `any` via `bun run check`; existing formatting is kept, so this rollout does not enable the starter's other lint/format rules.
+- knip is held at `~6.44.2`: 6.45.1 reports `$app` from `extends: "$app/tsconfig"` in `apps/web/tsconfig.json` (SvelteKit 3) as an unlisted dependency. Lift the pin once a knip release reads it again.
+- The footer keeps Songgate's sender line inside the page column with a 76 px wordmark, the dock band as wide beneath it. The app's footer has no language button, the language sits in the settings.

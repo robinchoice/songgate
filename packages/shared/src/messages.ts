@@ -124,6 +124,10 @@ const de = {
 
   // Web: footer and feedback
   madeBy: 'ein Werkzeug von',
+  pleasanceTools: 'Werkzeuge von Pleasance',
+  youAreHere: 'Du bist hier',
+  desktopApp: 'Desktop-App',
+  freeSpot: 'Freier Platz',
   giveFeedback: 'Feedback geben',
   imprint: 'Impressum',
   imprintPath: '/impressum',
@@ -291,6 +295,10 @@ const en: Messages = {
   shareMeta: (from, services) => `${from ? `From ${from} · ` : ''}Listen on ${services}`,
 
   madeBy: 'a tool by',
+  pleasanceTools: 'Tools by Pleasance',
+  youAreHere: 'You are here',
+  desktopApp: 'Desktop app',
+  freeSpot: 'Free spot',
   giveFeedback: 'Give feedback',
   imprint: 'Imprint',
   imprintPath: '/imprint',

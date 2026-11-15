@@ -9,6 +9,8 @@ export const LIVE = true;
 // The same as appStoreUrl and playStoreUrl in the app's config.dart
 export const APP_STORE_URL = 'https://apps.apple.com/app/id6819013473';
 export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=org.pleasance.songgate';
+// Pleasance's apps for the dock under the wordmark, see AppDock.svelte
+export const PLEASANCE_APPS_URL = 'https://pleasance.org/apps.json';
 export { bandColor, bandGradient, DEEP, GLOW } from './band';
 export { type Kind, type Locale, type Messages, messages, pickLocale } from './messages';
 import type { Kind } from './messages';
@@ -142,3 +144,21 @@ export function friendsMessage(song: Song, friends: Friend[], origin: string, fr
   });
   return [head, ...lines, `${m.others}: ${everyone}`].join('\n') + footer;
 }
+
+// https://pleasance.org/apps.json, read by the app dock in the footer. Only web
+// links, so a broken or hijacked file cannot plant javascript: URLs. The band is
+// the product's section of the colour band, desktop marks apps whose page is a
+// download rather than the app itself.
+const webUrl = z.url({ protocol: /^https?$/ });
+export const pleasanceAppsSchema = z.object({
+  apps: z.array(
+    z.object({
+      name: z.string().min(1).max(40),
+      url: webUrl,
+      icon: webUrl,
+      band: z.object({ from: z.number().min(1).max(7), to: z.number().min(1).max(7) }),
+      desktop: z.boolean().optional(),
+    }),
+  ),
+});
+export type PleasanceApp = z.infer<typeof pleasanceAppsSchema>['apps'][number];

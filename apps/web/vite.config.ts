@@ -21,7 +21,8 @@ export default defineConfig({
           'style-src-attr': ['unsafe-inline'],
           // Song covers come from the CDNs of every streaming service
           'img-src': ['self', 'data:', 'https:'],
-          'connect-src': ['self', 'https://glitchtip.pleasance.org'],
+          // pleasance.org: app list for the dock in the footer (img-src already allows its icons)
+          'connect-src': ['self', 'https://glitchtip.pleasance.org', 'https://pleasance.org'],
           'frame-ancestors': ['none'],
           'base-uri': ['self'],
           'form-action': ['self'],
