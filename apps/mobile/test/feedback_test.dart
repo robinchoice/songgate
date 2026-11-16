@@ -231,4 +231,29 @@ void main() {
     expect(tester.getRect(button).right, lessThanOrEqualTo(296));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('settings and feedback sheets keep one column on a tablet', (
+    tester,
+  ) async {
+    await mount(tester);
+    // iPad-sized window in points
+    tester.view.physicalSize = const Size(2388, 1668);
+    tester.view.devicePixelRatio = 2;
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+    // BottomSheet spans the window, its Material holds the column
+    Finder sheet() => find
+        .descendant(
+          of: find.byType(BottomSheet).last,
+          matching: find.byType(Material),
+        )
+        .first;
+    expect(tester.getSize(sheet()).width, 520);
+
+    await tester.tap(find.text('Feedback geben'));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(sheet()).width, 520);
+  });
 }

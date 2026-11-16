@@ -114,60 +114,67 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(t.support)),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            Text(t.supportIntro(appName), style: theme.textTheme.bodyLarge),
-            const SizedBox(height: 24),
-            switch (_state) {
-              _State.loading => Center(
-                child: ShaderMask(
-                  shaderCallback: (bounds) =>
-                      bandGradient(glow).createShader(bounds),
-                  blendMode: BlendMode.srcIn,
-                  child: const CircularProgressIndicator(color: Colors.white),
-                ),
-              ),
-              _State.unavailable => Text(
-                t.supportUnavailable,
-                style: theme.textTheme.bodyMedium,
-              ),
-              _State.thanks => Text(
-                t.supportThanks,
-                style: theme.textTheme.titleMedium,
-              ),
-              _State.ready || _State.buying => Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (final product in _products)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: OutlinedButton(
-                        onPressed: _state == _State.buying
-                            ? null
-                            : () => _buy(product),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: Row(
-                            children: [
-                              Expanded(child: Text(_name(t, product.id))),
-                              Text(product.price),
-                            ],
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: ListView(
+              padding: const EdgeInsets.all(24),
+              children: [
+                Text(t.supportIntro(appName), style: theme.textTheme.bodyLarge),
+                const SizedBox(height: 24),
+                switch (_state) {
+                  _State.loading => Center(
+                    child: ShaderMask(
+                      shaderCallback: (bounds) =>
+                          bandGradient(glow).createShader(bounds),
+                      blendMode: BlendMode.srcIn,
+                      child: const CircularProgressIndicator(
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  _State.unavailable => Text(
+                    t.supportUnavailable,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  _State.thanks => Text(
+                    t.supportThanks,
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  _State.ready || _State.buying => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final product in _products)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: OutlinedButton(
+                            onPressed: _state == _State.buying
+                                ? null
+                                : () => _buy(product),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: Row(
+                                children: [
+                                  Expanded(child: Text(_name(t, product.id))),
+                                  Text(product.price),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  if (_failed)
-                    Text(
-                      t.supportFailed,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: errorGlow,
-                      ),
-                    ),
-                ],
-              ),
-            },
-          ],
+                      if (_failed)
+                        Text(
+                          t.supportFailed,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: errorGlow,
+                          ),
+                        ),
+                    ],
+                  ),
+                },
+              ],
+            ),
+          ),
         ),
       ),
     );
