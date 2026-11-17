@@ -42,6 +42,7 @@ const hairline = Color(0x12FFFFFF);
 const hairlineStrong = Color(0x24FFFFFF);
 const ink = Color(0xFF17171A);
 const displayFont = 'Bricolage Grotesque';
+const contentMaxWidth = 520.0;
 const _radius = BorderRadius.all(Radius.circular(14));
 const _pill = BorderRadius.all(Radius.circular(999));
 
@@ -181,7 +182,7 @@ ThemeData buildTheme() {
     bottomSheetTheme: const BottomSheetThemeData(
       backgroundColor: surface,
       surfaceTintColor: Colors.transparent,
-      constraints: BoxConstraints(maxWidth: 520),
+      constraints: BoxConstraints(maxWidth: contentMaxWidth),
     ),
     expansionTileTheme: const ExpansionTileThemeData(
       collapsedTextColor: muted,

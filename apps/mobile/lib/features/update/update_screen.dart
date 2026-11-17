@@ -19,7 +19,7 @@ class UpdateScreen extends ConsumerWidget {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
+            constraints: const BoxConstraints(maxWidth: contentMaxWidth),
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(28),
               child: Column(

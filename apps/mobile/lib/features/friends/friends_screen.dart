@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/brand.dart';
 import '../../core/locale.dart';
 import '../converter/conversion.dart';
 import 'friends_bar.dart';
@@ -205,7 +206,7 @@ class FriendsScreen extends ConsumerWidget {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
+            constraints: const BoxConstraints(maxWidth: contentMaxWidth),
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
@@ -308,7 +309,7 @@ class AddFriendScreen extends ConsumerWidget {
         child: Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
+            constraints: const BoxConstraints(maxWidth: contentMaxWidth),
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: !valid

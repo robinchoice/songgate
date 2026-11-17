@@ -443,7 +443,7 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen> {
             child: Align(
               alignment: Alignment.topCenter,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 520),
+                constraints: const BoxConstraints(maxWidth: contentMaxWidth),
                 child: song == null
                     // The box in the middle, the share steps at the bottom,
                     // scrolling only when the screen is too small for both

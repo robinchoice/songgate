@@ -66,7 +66,7 @@ class _ShareSetupState extends ConsumerState<ShareSetup> {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
+            constraints: const BoxConstraints(maxWidth: contentMaxWidth),
             child: ListView(
               padding: const EdgeInsets.all(24),
               children: [
