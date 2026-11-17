@@ -4,7 +4,7 @@ export type Kind = 'song' | 'album' | 'podcast' | 'episode';
 
 const de = {
   // Link previews and the start of llms.txt
-  tagline: 'Ein Link für einen Song, der bei allen im eigenen Streamingdienst aufgeht.',
+  tagline: 'Musik teilen, egal wer was hört.',
 
   // API errors. Custom zod messages in index.ts are keys from here.
   failures: {
@@ -182,7 +182,7 @@ const de = {
 export type Messages = typeof de;
 
 const en: Messages = {
-  tagline: 'One link for a song that opens in everyone’s own streaming service.',
+  tagline: 'Share music, whatever they listen on.',
 
   failures: {
     INVALID_LINK: 'Please share a single song, album or podcast from YouTube Music, Apple Music, Apple Podcasts, Spotify, Deezer or TIDAL with Songgate.',
