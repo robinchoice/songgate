@@ -41,7 +41,6 @@ Future<void> showFeedbackSheet(
     isScrollControlled: true,
     useSafeArea: true,
     showDragHandle: true,
-    constraints: const BoxConstraints(maxWidth: 520),
     builder: (_) => FeedbackSheet(
       kind: kind,
       screenshot: screenshot,

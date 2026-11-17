@@ -181,6 +181,7 @@ ThemeData buildTheme() {
     bottomSheetTheme: const BottomSheetThemeData(
       backgroundColor: surface,
       surfaceTintColor: Colors.transparent,
+      constraints: BoxConstraints(maxWidth: 520),
     ),
     expansionTileTheme: const ExpansionTileThemeData(
       collapsedTextColor: muted,

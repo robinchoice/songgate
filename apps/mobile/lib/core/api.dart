@@ -87,17 +87,9 @@ class Api {
           .timeout(const Duration(seconds: 25));
       if (response.statusCode >= 400) {
         _noteError('/song', response.statusCode);
-        String? error;
-        try {
-          if (jsonDecode(utf8.decode(response.bodyBytes)) case {
-            'error': final String message,
-          }) {
-            error = message;
-          }
-        } on FormatException {
-          // Not from our API, e.g. a proxy page
-        }
-        throw ApiException(error ?? locale.messages.serviceUnavailable);
+        throw ApiException(
+          _errorMessage(response) ?? locale.messages.serviceUnavailable,
+        );
       }
       return Song.fromJson(
         jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>,
@@ -126,17 +118,9 @@ class Api {
           )
           .timeout(const Duration(seconds: 30));
       if (response.statusCode >= 400) {
-        String? error;
-        try {
-          if (jsonDecode(utf8.decode(response.bodyBytes)) case {
-            'error': final String message,
-          }) {
-            error = message;
-          }
-        } on FormatException {
-          // Not from our API, e.g. a proxy page
-        }
-        throw ApiException(error ?? locale.messages.serviceUnavailable);
+        throw ApiException(
+          _errorMessage(response) ?? locale.messages.serviceUnavailable,
+        );
       }
     } on TimeoutException {
       throw ApiException(locale.messages.sendTimeout);
@@ -144,4 +128,17 @@ class Api {
       throw ApiException(locale.messages.offline);
     }
   }
+}
+
+String? _errorMessage(http.Response response) {
+  try {
+    if (jsonDecode(utf8.decode(response.bodyBytes)) case {
+      'error': final String message,
+    }) {
+      return message;
+    }
+  } on FormatException {
+    // Not from our API, e.g. a proxy page
+  }
+  return null;
 }

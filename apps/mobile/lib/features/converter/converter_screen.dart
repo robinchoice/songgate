@@ -161,7 +161,6 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen> {
   Future<void> _settings() => showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    constraints: const BoxConstraints(maxWidth: 520),
     builder: (context) => Consumer(
       builder: (context, sheetRef, _) {
         final t = sheetRef.watch(messagesProvider);
