@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, spyOn, test } from 'b
 import fc from 'fast-check';
 import * as monitoring from './monitoring';
 import { resolve, resolveAll } from './lib/music';
-import type { Fetch } from './lib/resolver';
+import type { Fetch } from './lib/providers';
 import { youtubePodcasts } from './lib/podcasts';
 import { seconds, tidalPageMeta } from './lib/tidal';
 

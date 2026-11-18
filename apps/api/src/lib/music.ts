@@ -1,9 +1,9 @@
-import { isPodcast, platformSchema, type Conversion, type ConversionInput, type Platform, type PodcastApp, type Song, sourceLink } from '@app/shared';
+import { isPodcast, platformSchema, type Conversion, type ConversionInput, type Kind, type Platform, type PodcastApp, type Song, sourceLink } from '@app/shared';
 import { z } from 'zod';
 import { findAlbums, loadAlbum, youtubeAlbums, type YouTubeAlbums } from './albums';
 import { findPodcasts, loadPodcast, podcastApps, youtubePodcasts, type AppleShow, type Podcast, type YouTubePodcasts } from './podcasts';
-import { appleArtwork600, appleCatalog, appleUrl, codeFailure, deezerData, https, itunesResults, providerCall, recording, session, pageMeta, youtube, type MusicLink, type Session } from './providers';
-import { ResolutionError, searchUrl, spotifyCandidates, youtubeVideoId, YOUTUBE_HOSTS, type Fetch } from './resolver';
+import { appleArtwork600, appleCatalog, appleUrl, codeFailure, deezerData, https, itunesResults, providerCall, recording, ResolutionError, session, pageMeta, youtube, type Fetch, type MusicLink, type Session } from './providers';
+import { spotifyCandidates } from './spotify';
 import { tidalCatalog, tidalPageMeta, tidalSearch, tidalTracks } from './tidal';
 
 const appleTrack = z.object({
@@ -25,6 +25,14 @@ const isrcCode = (value?: string) => value && /^[A-Z]{2}[A-Z0-9]{3}\d{7}$/.test(
 type Track = { title: string; artist: string; url: string; durationSeconds?: number; artworkUrl: string | null; isrc?: string };
 type YouTubeSong = { id: string; title: string; artists: string[]; album?: string; durationSeconds?: number; artworkUrl: string | null };
 export type MusicSearch = (query: string, signal: AbortSignal) => Promise<YouTubeSong[]>;
+
+const YOUTUBE_HOSTS = ['music.youtube.com', 'www.youtube.com', 'youtube.com', 'm.youtube.com', 'youtu.be'];
+
+function youtubeVideoId(url: URL) {
+  const id = url.hostname === 'youtu.be' ? url.pathname.slice(1) : url.pathname === '/watch' ? url.searchParams.get('v') : null;
+  if (!id || !/^[A-Za-z0-9_-]{11}$/.test(id)) throw new ResolutionError('INVALID_LINK');
+  return id;
+}
 
 // A song or an album: Apple albums without ?i=, Spotify, Deezer and TIDAL /album/, YouTube Music album playlists and pages.
 // A podcast or an episode: Apple Podcasts, Spotify and Deezer /show/ and /episode/, YouTube Music podcast playlists and pages.
@@ -103,6 +111,22 @@ const searchYouTube: MusicSearch = async (query, signal) => {
       artworkUrl: item.thumbnails?.[0]?.url ?? null,
     }] : []);
 };
+
+// The search on a service, for when it has no match: every service gets at least this link
+export function searchUrl(target: Platform, source: { title: string; artist: string }, country = 'DE', kind: Kind = 'song') {
+  // A show's publisher only gets in the way of finding it
+  const artist = kind === 'podcast' ? '' : source.artist.replace(/VEVO$/i, '').trim();
+  const title = source.title.replace(/[\[(][^\])]*\b(?:official|video|audio|lyrics?|remaster(?:ed)?|4k|hd)\b[^\])]*[\])]/gi, '').replace(/\s+/g, ' ').trim();
+  const query = title.toLowerCase().includes(artist.toLowerCase()) ? title : `${artist} ${title}`;
+  if (target === 'appleMusic' && isPodcast(kind)) return `https://podcasts.apple.com/${country.toLowerCase()}/search?${new URLSearchParams({ term: query })}`;
+  if (target === 'spotify') return `https://open.spotify.com/search/${encodeURIComponent(query)}`;
+  if (target === 'deezer') return `https://www.deezer.com/search/${encodeURIComponent(query)}`;
+  if (target === 'tidal') return `https://tidal.com/search?${new URLSearchParams({ q: query })}`;
+  if (target === 'amazonMusic') return `https://${{ US: 'music.amazon.com', GB: 'music.amazon.co.uk' }[country] ?? 'music.amazon.de'}/search/${encodeURIComponent(query)}`;
+  const url = new URL(target === 'appleMusic' ? `https://music.apple.com/${country.toLowerCase()}/search` : 'https://music.youtube.com/search');
+  url.searchParams.set(target === 'appleMusic' ? 'term' : 'q', query);
+  return url.toString();
+}
 
 // Share links carry only the source song or album, so the share page needs no storage
 export function sharePath(source: MusicLink) {
@@ -229,7 +253,7 @@ function findCandidates(target: Platform, source: Track, country: string, curren
       const found = await tidalSearch('tracks', query, country, current);
       candidates = found ? tidalTracks(found).filter(track => matches(track.title, track.artists, track.durationSeconds)).map(tidalCandidate) : [];
     } else if (target === 'spotify') {
-      candidates = await spotifyCandidates(source, get);
+      candidates = await spotifyCandidates(source, current);
     } else {
       candidates = [];
     }

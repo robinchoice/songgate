@@ -1,8 +1,7 @@
 import type { Conversion, Platform, PodcastApp } from '@app/shared';
 import { YTNodes } from 'youtubei.js';
 import { z } from 'zod';
-import { appleArtwork600, deezerData, https, itunesResults, normalize, pageMeta, providerCall, youtube, type MusicLink, type Session } from './providers';
-import { ResolutionError } from './resolver';
+import { appleArtwork600, deezerData, https, itunesResults, normalize, pageMeta, providerCall, ResolutionError, youtube, type MusicLink, type Session } from './providers';
 import { spotifyApi } from './spotify';
 
 // Shows and episodes. There is no ISRC for podcasts: a show is found by its name, an episode by

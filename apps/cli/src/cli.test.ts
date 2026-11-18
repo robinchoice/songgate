@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, expect, test } from 'bun:test';
 import { type Conversion, type ConversionInput, messages, type Song } from '@app/shared';
 import { createApp } from '../../api/src/app';
-import { ResolutionError } from '../../api/src/lib/resolver';
+import { ResolutionError } from '../../api/src/lib/providers';
 import { run } from './cli';
 import { EXIT } from './command';
 

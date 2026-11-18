@@ -5,7 +5,7 @@ import { friendsMessage, type Song } from '@app/shared';
 import type { YouTubeAlbums } from './lib/albums';
 import { musicSource, resolve, resolveAll, sharePath, type MusicSearch } from './lib/music';
 import { episodeScore, showScore, type YouTubePodcasts } from './lib/podcasts';
-import { ResolutionError, type Fetch } from './lib/resolver';
+import { ResolutionError, type Fetch } from './lib/providers';
 
 const diagnostics = spyOn(monitoring, 'captureMessage').mockImplementation(() => 'test');
 afterEach(() => diagnostics.mockClear());

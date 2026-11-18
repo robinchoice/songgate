@@ -3,7 +3,7 @@ import * as monitoring from './monitoring';
 import { friendsMessage } from '@app/shared';
 import type { YouTubeAlbums } from './lib/albums';
 import { musicSource, resolve, resolveAll, sharePath } from './lib/music';
-import type { Fetch } from './lib/resolver';
+import type { Fetch } from './lib/providers';
 
 const diagnostics = spyOn(monitoring, 'captureMessage').mockImplementation(() => 'test');
 afterEach(() => diagnostics.mockClear());

@@ -1,11 +1,20 @@
-import type { Kind, Platform } from '@app/shared';
+import { messages, type FailureCode, type Kind, type Platform } from '@app/shared';
 import { Innertube } from 'youtubei.js';
 import { z } from 'zod';
 import { captureMessage } from '../monitoring';
 import { appleMusicToken } from './apple-music';
-import { ResolutionError, type Fetch } from './resolver';
 
-// Plumbing shared by the song and the album lookups
+// Plumbing shared by the song, album and podcast lookups
+
+// Why a lookup ends without an answer. NO_MATCH brings the search on the target service along.
+export class ResolutionError extends Error {
+  constructor(public code: FailureCode, public searchUrl: string | undefined = undefined) {
+    super(messages.de.failures[code]);
+  }
+}
+
+// Every request to a music service goes through one of these, so tests fake the services
+export type Fetch = (url: URL, init: RequestInit) => Promise<Response>;
 
 // Amazon Music has no open catalogue, so its links are never a source.
 // show is the show's ID of an Apple Podcasts episode, whose links name both.

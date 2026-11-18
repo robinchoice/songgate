@@ -1,8 +1,8 @@
 import type { Conversion, Platform } from '@app/shared';
 import { YTNodes } from 'youtubei.js';
 import { z } from 'zod';
-import { appleArtwork600, appleCatalog, appleUrl, codeFailure, deezerData, https, itunesResults, normalize, providerCall, recording, pageMeta, youtube, type MusicLink, type Session } from './providers';
-import { ResolutionError } from './resolver';
+import { appleArtwork600, appleCatalog, appleUrl, codeFailure, deezerData, https, itunesResults, normalize, providerCall, recording, pageMeta, ResolutionError, youtube, type MusicLink, type Session } from './providers';
+import { spotifyTrackIds } from './spotify';
 import { tidalAlbums, tidalCatalog, tidalPageMeta, tidalSearch } from './tidal';
 
 type Candidates = Conversion['candidates'];
@@ -54,7 +54,6 @@ const deezerAlbum = z.object({
   cover_medium: z.string().optional(), cover_xl: z.string().optional(), available: z.boolean().optional(),
   tracks: z.object({ data: z.array(z.object({ title: z.string() })) }).optional(),
 });
-const listenBrainz = z.array(z.object({ spotify_track_ids: z.array(z.string()).default([]) }));
 const upcCode = (value?: string) => value && /^\d{12,14}$/.test(value) ? { upc: value } : {};
 // The iTunes API names singles and EPs "Title - Single", the other services don't
 const appleName = (name: string) => name.replace(/ - (?:Single|EP)$/, '');
@@ -152,10 +151,7 @@ function albumScore(source: Album) {
 // ListenBrainz knows Spotify tracks, not albums: the album's first track leads to its Spotify page, which names its album
 async function spotifyAlbums(source: Album, current: Session, score: ReturnType<typeof albumScore>) {
   if (!source.firstTrack) return [];
-  const entries = listenBrainz.parse(await current.get('https://labs.api.listenbrainz.org/spotify-id-from-metadata/json', {
-    artist_name: source.artist, track_name: source.firstTrack, release_name: '',
-  }));
-  const ids = [...new Set(entries.flatMap(entry => entry.spotify_track_ids))].filter(id => /^[A-Za-z0-9]{22}$/.test(id)).slice(0, 3);
+  const ids = await spotifyTrackIds(source.artist, source.firstTrack, 3, current);
   const pages = await Promise.all(ids.map(id => current.spotifyPage(`track/${id}`).catch((error: unknown) => {
     if (error instanceof ResolutionError && error.code === 'SOURCE_UNAVAILABLE') return '';
     throw error;

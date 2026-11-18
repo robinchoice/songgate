@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { createApp } from './app';
-import { ResolutionError } from './lib/resolver';
+import { ResolutionError } from './lib/providers';
 
 const conversion = { target: 'appleMusic' as const, source: { kind: 'song' as const, title: 'Savior', artist: 'Red Hot Chili Peppers', url: 'https://music.youtube.com/watch?v=UijW9hGpnzc' }, sharePath: '/s/yt/UijW9hGpnzc', candidates: [{ title: 'Savior', url: 'https://open.spotify.com/track/0O8RjwNco465s5o9Ix9IYj', artworkUrl: null }] };
 const post = (body: unknown) => ({ method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });

@@ -1,8 +1,8 @@
 import { afterAll, afterEach, beforeAll, describe, expect, spyOn, test } from 'bun:test';
 import * as monitoring from './monitoring';
 import { friendsMessage } from '@app/shared';
-import { resolve, resolveAll, sharePath, musicSource, type MusicSearch } from './lib/music';
-import type { Fetch } from './lib/resolver';
+import { resolve, resolveAll, searchUrl, sharePath, musicSource, type MusicSearch } from './lib/music';
+import type { Fetch } from './lib/providers';
 import { youtubePodcasts } from './lib/podcasts';
 
 const diagnostics = spyOn(monitoring, 'captureMessage').mockImplementation(() => 'test');
@@ -343,4 +343,54 @@ describe('ISRC and UPC matching with a MusicKit key', async () => {
     }
     expect(diagnostics.mock.calls).toEqual([['UPC lookup failure', { level: 'warning', tags: { provider: 'appleMusic' } }]]);
   });
+});
+
+const youtubeTracked = `${youtube}&si=secretTracking`;
+const spotifyId = '0O8RjwNco465s5o9Ix9IYj';
+
+describe('YouTube links', () => {
+  test.each([
+    ['Hör mal: ' + youtubeTracked, 'UijW9hGpnzc'],
+    ['https://youtu.be/Z19cVpmYIkw?si=tracking', 'Z19cVpmYIkw'],
+    ['https://www.youtube.com/watch?list=playlist&v=UijW9hGpnzc', 'UijW9hGpnzc'],
+    ['https://youtu.be/UijW9hGpnzc ' + youtubeTracked, 'UijW9hGpnzc'],
+    ['Hör mal (https://youtu.be/UijW9hGpnzc).', 'UijW9hGpnzc'],
+  ])('accepts %s', (input, id) => expect(musicSource(input).id).toBe(id));
+
+  test.each([
+    'https://music.youtube.com/playlist?list=playlist',
+    'https://music.youtube.com.evil.example/watch?v=UijW9hGpnzc',
+    'https://evil.example@music.youtube.com/watch?v=UijW9hGpnzc',
+    'https://music.youtube.com/watch?v=short',
+    'https://youtu.be/UijW9hGpnzc https://youtu.be/Z19cVpmYIkw',
+    'Savior', 'http://127.0.0.1/watch?v=UijW9hGpnzc',
+  ])('rejects %s', input => expect(() => musicSource(input)).toThrow());
+});
+
+describe('Own share links', () => {
+  const own = 'https://app.test';
+  process.env.APP_URL = own;
+
+  test.each([
+    [`${own}/s/yt/UijW9hGpnzc?from=Robin&service=spotify`, { kind: 'song', platform: 'youtubeMusic', id: 'UijW9hGpnzc' }],
+    [`${own}/s/am/de/1440841766`, { kind: 'song', platform: 'appleMusic', id: '1440841766', country: 'DE' }],
+    [`${own}/s/album/td/12345`, { kind: 'album', platform: 'tidal', id: '12345' }],
+    [`${own}/s/episode/am/de/1200361736/1000799791974`, { kind: 'episode', platform: 'appleMusic', id: '1000799791974', show: '1200361736' }],
+    // A service link next to the share page wins, even when the share page came from another service
+    [`🎵 Savior\nhttps://open.spotify.com/track/${spotifyId}\nAlle Dienste: ${own}/s/yt/UijW9hGpnzc`, { platform: 'spotify', id: spotifyId }],
+  ])('accepts %s', (input, expected) => expect(musicSource(input)).toMatchObject(expected));
+
+  test.each([
+    `${own}/s/xx/1`,
+    `${own}/s/yt/a/b`,
+    'https://songgate.example/s/yt/UijW9hGpnzc',
+  ])('rejects %s', input => expect(() => musicSource(input)).toThrow());
+});
+
+test.each([
+  ['appleMusic', { title: 'Savior (Official Video)', artist: 'RedHotChiliPeppersVEVO' }, 'https://music.apple.com/at/search?term=RedHotChiliPeppers+Savior'],
+  ['youtubeMusic', { title: 'Red Hot Chili Peppers - Savior [Official Audio] (4K Remaster)', artist: 'Red Hot Chili Peppers' }, 'https://music.youtube.com/search?q=Red+Hot+Chili+Peppers+-+Savior'],
+  ['spotify', { title: 'Savior (Live)', artist: 'Red Hot Chili Peppers' }, 'https://open.spotify.com/search/Red%20Hot%20Chili%20Peppers%20Savior%20(Live)'],
+] as const)('search fallback for %s drops video noise', (target, source, url) => {
+  expect(searchUrl(target, source, 'AT')).toBe(url);
 });
