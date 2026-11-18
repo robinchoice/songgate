@@ -1,8 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, spyOn, test } from 'bun:test';
+import fc from 'fast-check';
 import * as monitoring from './monitoring';
 import { friendsMessage } from '@app/shared';
 import { resolve, resolveAll, searchUrl, sharePath, musicSource, type MusicSearch } from './lib/music';
-import type { Fetch } from './lib/providers';
+import type { Fetch, MusicLink } from './lib/providers';
 import { youtubePodcasts } from './lib/podcasts';
 
 const diagnostics = spyOn(monitoring, 'captureMessage').mockImplementation(() => 'test');
@@ -382,6 +383,26 @@ describe('Own share links', () => {
     'https://songgate.example/s/yt/UijW9hGpnzc',
   ])('rejects %s', input => expect(() => musicSource(input)).toThrow());
 
+  // Share links are out in chats: sharePath here and sourceLink in packages/shared stay each other's inverse.
+  // A YouTube episode is left out, its link is a video's and only YouTube Music tells the two apart.
+  test('every share path leads back to the link it was made from', () => {
+    const id = (pattern: RegExp) => fc.stringMatching(pattern);
+    const number = id(/^\d{1,12}$/);
+    const country = id(/^[A-Z]{2}$/);
+    const plain = (platform: 'spotify' | 'deezer', kinds: MusicLink['kind'][], ids: fc.Arbitrary<string>) =>
+      fc.record({ kind: fc.constantFrom(...kinds), platform: fc.constant(platform), id: ids, country: fc.constant('') });
+    const link: fc.Arbitrary<MusicLink> = fc.oneof(
+      fc.record({ kind: fc.constant('song'), platform: fc.constant('youtubeMusic'), id: id(/^[A-Za-z0-9_-]{11}$/), country: fc.constant('') }),
+      fc.record({ kind: fc.constant('album'), platform: fc.constant('youtubeMusic'), id: id(/^(?:OLAK5uy_|MPREb_)[A-Za-z0-9_-]{8,40}$/), country: fc.constant('') }),
+      fc.record({ kind: fc.constant('podcast'), platform: fc.constant('youtubeMusic'), id: id(/^PL[A-Za-z0-9_-]{10,60}$/), country: fc.constant('') }),
+      fc.record({ kind: fc.constantFrom('song', 'album', 'podcast'), platform: fc.constant('appleMusic'), id: number, country }),
+      fc.record({ kind: fc.constant('episode'), platform: fc.constant('appleMusic'), id: id(/^\d{1,15}$/), country, show: number }),
+      plain('spotify', ['song', 'album', 'podcast', 'episode'], id(/^[A-Za-z0-9]{22}$/)),
+      plain('deezer', ['song', 'album', 'podcast', 'episode'], number),
+      fc.record({ kind: fc.constantFrom('song', 'album'), platform: fc.constant('tidal'), id: number, country: fc.constant('') }),
+    );
+    fc.assert(fc.property(link, source => expect(musicSource(`${own}${sharePath(source)}`)).toEqual(source)));
+  });
 });
 
 test.each([
