@@ -56,18 +56,17 @@ let server: ReturnType<typeof Bun.serve>;
 let url = '';
 
 beforeAll(() => {
-  const app = createApp(
-    async (input) => {
+  const app = createApp({
+    resolve: async (input) => {
       converted.push(input);
       if (input.input.includes('unknown')) throw new ResolutionError('NO_MATCH', 'https://open.spotify.com/search/unknown');
       return conversion;
     },
-    undefined,
-    async (input) => {
+    resolveAll: async (input) => {
       looked.push(input);
       return input.input.includes('/album/') ? album : input.input.includes('/show/') ? podcast : song;
     },
-  );
+  });
   server = Bun.serve({ port: 0, fetch: app.fetch });
   url = server.url.origin;
 });

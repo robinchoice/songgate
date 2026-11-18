@@ -4,7 +4,7 @@ import { createApp } from './app';
 import { publicPages } from './lib/public-pages';
 
 process.env.APP_URL = 'https://app.test';
-const app = createApp(async () => { throw new Error('unused'); });
+const app = createApp({ resolve: async () => { throw new Error('unused'); } });
 const get = (path: string, headers: Record<string, string> = {}) => app.request(path, { headers });
 
 test('llms.txt lists every public page as Markdown', async () => {

@@ -268,6 +268,9 @@ type Lookup = {
   apps?: () => PodcastApp[];
 };
 type YouTube = { search: MusicSearch; albums: YouTubeAlbums; podcasts: YouTubePodcasts };
+// What a lookup reaches the outside through: the request's signal, which ends it early, and the music
+// services. The API passes only the signal and runs on the defaults, tests name the services they fake.
+export type Outside = Partial<YouTube> & { signal?: AbortSignal; fetcher?: Fetch };
 
 function podcastLookup(link: MusicLink, source: Podcast, current: Session, podcasts: YouTubePodcasts): Lookup {
   const kind = link.kind === 'podcast' ? 'podcast' : 'episode';
@@ -297,20 +300,20 @@ async function lookup(link: MusicLink, country: string, current: Session, { sear
   return { link: parsed, source, find: (target, country) => findCandidates(target, source, country, current, search) };
 }
 
-async function withSession<T>(input: string, requestSignal: AbortSignal | undefined, fetcher: Fetch, run: (parsed: MusicLink, current: Session) => Promise<T>): Promise<T> {
-  const current = session(requestSignal, fetcher);
+async function withSession<T>(input: string, { signal, fetcher = fetch, search = searchYouTube, albums = youtubeAlbums, podcasts = youtubePodcasts }: Outside, run: (parsed: MusicLink, current: Session, youtube: YouTube) => Promise<T>): Promise<T> {
+  const current = session(signal, fetcher);
   try {
-    return await run(musicSource(await expandShortLink(input, current)), current);
+    return await run(musicSource(await expandShortLink(input, current)), current, { search, albums, podcasts });
   } catch (error) {
     if (error instanceof ResolutionError) throw error;
     throw new ResolutionError('NETWORK');
   } finally { current.controller.abort(); }
 }
 
-export async function resolve(input: ConversionInput, requestSignal?: AbortSignal, fetcher: Fetch = fetch, search: MusicSearch = searchYouTube, albums: YouTubeAlbums = youtubeAlbums, podcasts: YouTubePodcasts = youtubePodcasts): Promise<Conversion> {
-  return withSession(input.input, requestSignal, fetcher, async (parsed, current) => {
+export async function resolve(input: ConversionInput, outside: Outside = {}): Promise<Conversion> {
+  return withSession(input.input, outside, async (parsed, current, youtube) => {
     if (parsed.platform === input.target) throw new ResolutionError('UNSUPPORTED_LINK');
-    const { link, source, find } = await lookup(parsed, input.country, current, { search, albums, podcasts });
+    const { link, source, find } = await lookup(parsed, input.country, current, youtube);
     const candidates = await find(input.target, input.country);
     if (!candidates.length) throw new ResolutionError('NO_MATCH', searchUrl(input.target, source, input.country, link.kind));
     return { source: { kind: link.kind, title: source.title, artist: source.artist, url: source.url }, target: input.target, candidates, sharePath: sharePath(link) };
@@ -319,9 +322,9 @@ export async function resolve(input: ConversionInput, requestSignal?: AbortSigna
 
 // The best match on every service at once, for the share page and for friends. A service
 // that finds nothing or fails gets a search link, so one slow service never blocks the rest.
-export async function resolveAll(input: { input: string; country: string }, requestSignal?: AbortSignal, fetcher: Fetch = fetch, search: MusicSearch = searchYouTube, albums: YouTubeAlbums = youtubeAlbums, podcasts: YouTubePodcasts = youtubePodcasts): Promise<Song> {
-  return withSession(input.input, requestSignal, fetcher, async (parsed, current) => {
-    const { link, source, find, apps } = await lookup(parsed, input.country, current, { search, albums, podcasts });
+export async function resolveAll(input: { input: string; country: string }, outside: Outside = {}): Promise<Song> {
+  return withSession(input.input, outside, async (parsed, current, youtube) => {
+    const { link, source, find, apps } = await lookup(parsed, input.country, current, youtube);
     const targets = platformSchema.options;
     const bests = await Promise.all(targets.map(target => target === parsed.platform ? undefined
       : find(target, input.country).then(candidates => candidates[0], () => undefined)));

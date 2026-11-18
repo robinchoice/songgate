@@ -26,23 +26,23 @@ const tidalTrack = (id: string, title: string, duration: string, extra: object =
 const included = [{ id: '4', type: 'artists', attributes: { name: 'Daft Punk' } }, { id: '20', type: 'albums', attributes: { title: 'Get Lucky', barcodeId: '886443927087' } }];
 
 test('a TIDAL link is read from its page without a key and matched by text', async () => {
-  const result = await resolve({ input: 'Hör mal https://tidal.com/browse/track/28048256/u', target: 'deezer', country: 'DE' }, undefined, async url => {
+  const result = await resolve({ input: 'Hör mal https://tidal.com/browse/track/28048256/u', target: 'deezer', country: 'DE' }, { fetcher: async url => {
     if (url.hostname === 'tidal.com') {
       expect(url.pathname).toBe('/track/28048256');
       return new Response(page('song', 'Get Lucky', 'Daft Punk &amp; Pharrell Williams'));
     }
     if (url.hostname === 'api.deezer.com') return Response.json({ data: [{ ...deezerTrack, artist: { name: 'Daft Punk' }, title: 'Get Lucky (feat. Pharrell Williams)' }] });
     throw new Error(`unexpected ${url}`);
-  });
+  } });
   expect(result.source).toEqual({ kind: 'song', title: 'Get Lucky', artist: 'Daft Punk & Pharrell Williams', url: 'https://tidal.com/track/28048256' });
   expect(result.sharePath).toBe('/s/td/28048256');
   expect(result.candidates[0]?.url).toBe('https://www.deezer.com/track/67238735');
 });
 
 test('without a key TIDAL and Amazon Music get search links', async () => {
-  await expect(resolve({ input: 'https://www.deezer.com/track/67238735', target: 'tidal', country: 'DE' }, undefined, async () => Response.json(deezerTrack)))
+  await expect(resolve({ input: 'https://www.deezer.com/track/67238735', target: 'tidal', country: 'DE' }, { fetcher: async () => Response.json(deezerTrack) }))
     .rejects.toMatchObject({ code: 'NO_MATCH', searchUrl: 'https://tidal.com/search?q=Daft+Punk+Get+Lucky' });
-  await expect(resolve({ input: 'https://www.deezer.com/track/67238735', target: 'amazonMusic', country: 'GB' }, undefined, async () => Response.json(deezerTrack)))
+  await expect(resolve({ input: 'https://www.deezer.com/track/67238735', target: 'amazonMusic', country: 'GB' }, { fetcher: async () => Response.json(deezerTrack) }))
     .rejects.toMatchObject({ code: 'NO_MATCH', searchUrl: 'https://music.amazon.co.uk/search/Daft%20Punk%20Get%20Lucky' });
 });
 
@@ -73,14 +73,14 @@ describe('with a TIDAL key', () => {
       return { data: [tidalTrack('28048256', 'Get Lucky', 'PT4M8S', { version: 'Radio Edit' })], included };
     }, async () => Response.json(deezerTrack));
     for (let i = 0; i < 2; i++) {
-      const result = await resolve({ input: 'https://www.deezer.com/track/67238735', target: 'tidal', country: 'AT' }, undefined, fetcher);
+      const result = await resolve({ input: 'https://www.deezer.com/track/67238735', target: 'tidal', country: 'AT' }, { fetcher });
       expect(result.candidates).toEqual([{ title: 'Get Lucky (Radio Edit)', url: 'https://tidal.com/track/28048256', album: 'Get Lucky', durationSeconds: 248, artworkUrl: null }]);
     }
     expect(tokens).toBe(1);
   });
 
   test('YouTube → TIDAL searches and names the artists of the hits', async () => {
-    const result = await resolve({ input: 'https://music.youtube.com/watch?v=5NV6Rdv1a3I', target: 'tidal', country: 'DE' }, undefined, tidal(url => {
+    const result = await resolve({ input: 'https://music.youtube.com/watch?v=5NV6Rdv1a3I', target: 'tidal', country: 'DE' }, { fetcher: tidal(url => {
       if (url.pathname.startsWith('/v2/searchResults/')) {
         expect(url.pathname).toBe('/v2/searchResults/Daft%20Punk%20Get%20Lucky');
         return { data: { id: 'Daft Punk Get Lucky', type: 'searchResults', relationships: { tracks: { data: [{ id: '1', type: 'tracks' }, { id: '2', type: 'tracks' }, { id: 'x', type: 'tracks' }] } } } };
@@ -92,12 +92,12 @@ describe('with a TIDAL key', () => {
     }, async url => {
       expect(url.hostname).toBe('www.youtube.com');
       return Response.json({ title: 'Get Lucky', author_name: 'Daft Punk - Topic' });
-    }), async () => []);
+    }), search: async () => [] });
     expect(result.candidates.map(candidate => candidate.url)).toEqual(['https://tidal.com/track/1', 'https://tidal.com/track/2']);
   });
 
   test('a TIDAL album finds Deezer by its UPC, and the share page links all services', async () => {
-    const song = await resolveAll({ input: 'https://tidal.com/album/28048252', country: 'DE' }, undefined, tidal(url => {
+    const song = await resolveAll({ input: 'https://tidal.com/album/28048252', country: 'DE' }, { fetcher: tidal(url => {
       expect(url.pathname).toBe('/v2/albums/28048252');
       expect(url.searchParams.get('include')).toBe('items');
       return {
@@ -112,7 +112,7 @@ describe('with a TIDAL key', () => {
         return Response.json([]);
       }
       return new Response('', { status: 500 });
-    }), async () => [], { search: async () => [], album: async () => { throw new Error('unused'); } });
+    }), search: async () => [], albums: { search: async () => [], album: async () => { throw new Error('unused'); } } });
     expect(song.source).toMatchObject({ kind: 'album', platform: 'tidal', title: 'Random Access Memories', artworkUrl: 'https://resources.tidal.com/images/cover/640x640.jpg' });
     expect(song.sharePath).toBe('/s/album/td/28048252');
     expect(song.links.tidal).toEqual({ url: 'https://tidal.com/album/28048252', found: true });

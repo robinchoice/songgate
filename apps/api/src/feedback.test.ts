@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { createApp } from './app';
 
 const db = createDb(process.env.DATABASE_URL);
-const app = createApp(async () => { throw new Error('unused'); }, db);
+const app = createApp({ db, resolve: async () => { throw new Error('unused'); } });
 const log = spyOn(console, 'log');
 
 beforeAll(() => migrateDb(process.env.DATABASE_URL), 20_000);

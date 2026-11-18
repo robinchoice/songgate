@@ -10,10 +10,10 @@ import { captureException } from './monitoring';
 import { agentRoutes } from './routes/agents';
 import { feedbackRoutes } from './routes/feedback';
 
-// Without a database there is no feedback, the converter needs none.
 const songInput = conversionInput.omit({ target: true });
 
-export function createApp(resolver = resolve, db?: Database, resolveSong = resolveAll) {
+// Without a database there is no feedback, the converter needs none. Tests pass their own lookups.
+export function createApp({ db, resolve: resolver = resolve, resolveAll: resolveSong = resolveAll }: { db?: Database; resolve?: typeof resolve; resolveAll?: typeof resolveAll } = {}) {
   let windowStart = Date.now();
   let requests = 0;
   const limit = (c: { header: (name: string, value: string) => void }) => {
@@ -64,7 +64,7 @@ export function createApp(resolver = resolve, db?: Database, resolveSong = resol
       if (!parsed.success) return c.json({ error: t(c).failures.INVALID_LINK }, 400);
       limit(c);
       c.header('Cache-Control', 'no-store');
-      return c.json(await resolver(parsed.data, c.req.raw.signal));
+      return c.json(await resolver(parsed.data, { signal: c.req.raw.signal }));
     })
     .get('/api/v1/song', async c => {
       const parsed = songInput.safeParse(c.req.query());
@@ -73,7 +73,7 @@ export function createApp(resolver = resolve, db?: Database, resolveSong = resol
       const cached = songs.get(key);
       if (cached && Date.now() - cached.at < 86_400_000) return c.json(cached.song);
       limit(c);
-      const song = await resolveSong(parsed.data, c.req.raw.signal);
+      const song = await resolveSong(parsed.data, { signal: c.req.raw.signal });
       songs.delete(key);
       if (songs.size >= 1000) songs.delete(songs.keys().next().value!);
       songs.set(key, { at: Date.now(), song });

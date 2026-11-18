@@ -79,7 +79,7 @@ test('an Apple episode is found by show, title and date, and names the other pod
       ];
     },
   });
-  const song = await resolveAll({ input: appleEpisodeLink, country: 'DE' }, undefined, fetcher, noSongs, noAlbums, podcasts);
+  const song = await resolveAll({ input: appleEpisodeLink, country: 'DE' }, { fetcher, search: noSongs, albums: noAlbums, podcasts });
   expect(song.source).toEqual({ kind: 'episode', platform: 'appleMusic', title: 'A Landslide Victory for Democrats', artist: 'The Daily', url: 'https://podcasts.apple.com/de/podcast/id1200361736?i=1000799791974', artworkUrl: episode.artworkUrl600 });
   expect(song.sharePath).toBe('/s/episode/am/de/1200361736/1000799791974');
   expect(song.links).toEqual({
@@ -108,7 +108,7 @@ test('a Spotify episode finds Apple by its show, a rerun with another date does 
       ? { results: [{ ...show, collectionId: 2, collectionName: 'Daily Expresso' }, show] }
       : { results: [{ ...episode, trackId: 3, releaseDate: '2026-11-20T10:00:00Z' }, { ...episode, collectionId: 2 }, episode] },
   });
-  const result = await resolve({ input: 'https://open.spotify.com/episode/5UxOyOLAC4usAfIblpKROk', target: 'appleMusic', country: 'DE' }, undefined, fetcher, noSongs, noAlbums, youtube());
+  const result = await resolve({ input: 'https://open.spotify.com/episode/5UxOyOLAC4usAfIblpKROk', target: 'appleMusic', country: 'DE' }, { fetcher, search: noSongs, albums: noAlbums, podcasts: youtube() });
   expect(result.source).toEqual({ kind: 'episode', title: 'A Landslide Victory for Democrats', artist: 'The Daily', url: 'https://open.spotify.com/episode/5UxOyOLAC4usAfIblpKROk' });
   expect(result.candidates.map(candidate => candidate.url)).toEqual(['https://podcasts.apple.com/de/podcast/id1200361736?i=1000799791974']);
   expect(result.sharePath).toBe('/s/episode/sp/5UxOyOLAC4usAfIblpKROk');
@@ -131,7 +131,7 @@ test('with a Spotify key a Deezer episode finds its Spotify show and episode', a
       },
       'api.spotify.com/v1/shows/3IM0lmZxpFAY7CwMuv9H4g/episodes': () => ({ items: [{ id: '5UxOyOLAC4usAfIblpKROk', name: 'A Landslide Victory for Democrats', release_date: '2026-11-04', images: [{ url: 'https://i.scdn.co/image/episode' }] }] }),
     });
-    const result = await resolve({ input: 'https://www.deezer.com/episode/957764821', target: 'spotify', country: 'DE' }, undefined, fetcher, noSongs, noAlbums, youtube());
+    const result = await resolve({ input: 'https://www.deezer.com/episode/957764821', target: 'spotify', country: 'DE' }, { fetcher, search: noSongs, albums: noAlbums, podcasts: youtube() });
     expect(result.candidates).toEqual([{ title: 'A Landslide Victory for Democrats', url: 'https://open.spotify.com/episode/5UxOyOLAC4usAfIblpKROk', artworkUrl: 'https://i.scdn.co/image/episode' }]);
   } finally {
     delete process.env.SPOTIFY_CLIENT_ID;
@@ -148,20 +148,20 @@ test('a YouTube video that is a podcast episode becomes one, other videos stay s
     'itunes.apple.com/search': url => url.searchParams.get('entity') === 'podcast' ? { results: [show] }
       : url.searchParams.get('entity') === 'podcastEpisode' ? { results: [episode] } : { results: [] },
   });
-  const result = await resolve({ input: 'https://youtu.be/OfYuvCcw5ho', target: 'appleMusic', country: 'DE' }, undefined, fetcher, noSongs, noAlbums, podcasts);
+  const result = await resolve({ input: 'https://youtu.be/OfYuvCcw5ho', target: 'appleMusic', country: 'DE' }, { fetcher, search: noSongs, albums: noAlbums, podcasts });
   expect(result.source.kind).toBe('episode');
   expect(result.sharePath).toBe('/s/episode/yt/OfYuvCcw5ho');
-  await expect(resolve({ input: 'https://youtu.be/dQw4w9WgXcQ', target: 'appleMusic', country: 'DE' }, undefined, fetcher, noSongs, noAlbums, podcasts))
+  await expect(resolve({ input: 'https://youtu.be/dQw4w9WgXcQ', target: 'appleMusic', country: 'DE' }, { fetcher, search: noSongs, albums: noAlbums, podcasts }))
     .rejects.toMatchObject({ code: 'NO_MATCH', searchUrl: 'https://music.apple.com/de/search?term=Rick+Astley+Never+Gonna+Give+You+Up' });
   // A failed check leaves a song
   const broken = youtube({ episode: async () => { throw new TypeError('fetch failed'); } });
-  await expect(resolve({ input: 'https://youtu.be/dQw4w9WgXcQ', target: 'appleMusic', country: 'DE' }, undefined, fetcher, noSongs, noAlbums, broken))
+  await expect(resolve({ input: 'https://youtu.be/dQw4w9WgXcQ', target: 'appleMusic', country: 'DE' }, { fetcher, search: noSongs, albums: noAlbums, podcasts: broken }))
     .rejects.toMatchObject({ code: 'NO_MATCH' });
 });
 
 test('a YouTube playlist that is no podcast is not supported', async () => {
   const podcasts = youtube({ show: async () => { throw new ResolutionError('UNSUPPORTED_LINK'); } });
-  await expect(resolve({ input: 'https://music.youtube.com/playlist?list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG', target: 'appleMusic', country: 'DE' }, undefined, services({}), noSongs, noAlbums, podcasts))
+  await expect(resolve({ input: 'https://music.youtube.com/playlist?list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG', target: 'appleMusic', country: 'DE' }, { fetcher: services({}), search: noSongs, albums: noAlbums, podcasts }))
     .rejects.toMatchObject({ code: 'UNSUPPORTED_LINK' });
 });
 
@@ -176,10 +176,10 @@ test('an Apple episode older than the lookup comes from its page, behind Apple r
     'podcasts.apple.com/de/podcast/old-one/id1200361736': () => new Response('<meta property="og:title" content="An Old One &amp; More"/><meta property="og:description" content="Podcast-Folge · The Daily · 27. September 2021 · 35 Min."/><script>{"datePublished":"2021-09-27"}</script>'),
     'itunes.apple.com/search': () => ({ results: [] }),
   });
-  const result = await resolve({ input: 'https://podcasts.apple.com/de/podcast/x/id1200361736?i=1000536795154', target: 'deezer', country: 'DE' }, undefined, async (url, init) => {
+  const result = await resolve({ input: 'https://podcasts.apple.com/de/podcast/x/id1200361736?i=1000536795154', target: 'deezer', country: 'DE' }, { fetcher: async (url, init) => {
     if (url.hostname === 'api.deezer.com') return Response.json({ data: [] });
     return fetcher(url, init);
-  }, noSongs, noAlbums, youtube()).catch((error: unknown) => error);
+  }, search: noSongs, albums: noAlbums, podcasts: youtube() }).catch((error: unknown) => error);
   expect(result).toMatchObject({ code: 'NO_MATCH', searchUrl: 'https://www.deezer.com/search/The%20Daily%20An%20Old%20One%20%26%20More' });
 });
 
@@ -196,7 +196,7 @@ test('an old Deezer episode is looked for where the show’s pace puts it', asyn
       return { data: Array.from({ length: 100 }, (_, i) => ({ id: 1000 + index + i, title: `Episode ${index + i}`, release_date: at(index + i).replace('T', ' ').slice(0, 19) })), total: 400 };
     },
   });
-  const result = await resolve({ input: appleEpisodeLink, target: 'deezer', country: 'DE' }, undefined, fetcher, noSongs, noAlbums, youtube());
+  const result = await resolve({ input: appleEpisodeLink, target: 'deezer', country: 'DE' }, { fetcher, search: noSongs, albums: noAlbums, podcasts: youtube() });
   expect(pages).toEqual(['0', '200']);
   expect(result.candidates.map(candidate => candidate.url)).toEqual(['https://www.deezer.com/episode/1250']);
 });

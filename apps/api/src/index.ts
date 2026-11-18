@@ -25,7 +25,7 @@ const startup = (async () => {
   const server = Bun.serve({
     port: Number(process.env.PORT || 3000),
     idleTimeout: 30,
-    fetch: createApp(undefined, db).fetch,
+    fetch: createApp({ db }).fetch,
   });
   console.log(`[boot] API listening on port ${server.port}`);
   return server;

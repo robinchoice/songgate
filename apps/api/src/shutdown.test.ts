@@ -44,7 +44,7 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   test(`API drains an active database request on ${signal}`, async () => {
     const { child, until } = start(
       `mock.module(${appModule}, () => ({
-         createApp: (_resolver, db) => ({ fetch: async () => {
+         createApp: ({ db }) => ({ fetch: async () => {
            console.log('request-started');
            await db.execute('select pg_sleep(0.3)');
            return new Response('complete');
