@@ -147,17 +147,8 @@ class FriendsBar extends ConsumerWidget {
     final t = ref.watch(messagesProvider);
     final theme = Theme.of(context);
     // Read at call time: "+ Neu" picks a friend saved after this build
-    void pick(List<String> names) => onChanged(names, [
-      for (final platform in serviceOrder)
-        if (ref
-            .read(socialProvider)
-            .friends
-            .any(
-              (friend) =>
-                  names.contains(friend.name) && friend.platform == platform,
-            ))
-          platform,
-    ]);
+    void pick(List<String> names) =>
+        onChanged(names, ref.read(socialProvider).servicesOf(names));
     bool groupOn(Group group) =>
         group.members.length == selected.length &&
         group.members.every(selected.contains);

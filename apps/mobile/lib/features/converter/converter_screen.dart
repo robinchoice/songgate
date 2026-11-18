@@ -291,14 +291,7 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen> {
     ].where((name) => social.friends.any((friend) => friend.name == name));
     _shareWhenFound = names.isNotEmpty;
     if (_shareWhenFound) {
-      _setPeople(names.toList(), [
-        for (final platform in serviceOrder)
-          if (social.friends.any(
-            (friend) =>
-                names.contains(friend.name) && friend.platform == platform,
-          ))
-            platform,
-      ]);
+      _setPeople(names.toList(), social.servicesOf(names));
     }
     _reset();
     _find();

@@ -19,14 +19,11 @@ final apiProvider = Provider(
   (ref) => Api(ref.watch(httpClientProvider), apiUrl),
 );
 
-/// The last failed calls, newest first. Feedback sends them along.
+/// The last failed lookups, newest first. Feedback sends them along.
 final recentErrors = <String>[];
 
-void _noteError(String path, Object status) {
-  recentErrors.insert(
-    0,
-    '${path == '/song' ? 'GET' : 'POST'} /api/v1$path → $status',
-  );
+void _noteError(Object status) {
+  recentErrors.insert(0, 'GET /api/v1/song → $status');
   if (recentErrors.length > 5) recentErrors.removeLast();
 }
 
@@ -86,7 +83,7 @@ class Api {
           )
           .timeout(const Duration(seconds: 25));
       if (response.statusCode >= 400) {
-        _noteError('/song', response.statusCode);
+        _noteError(response.statusCode);
         throw ApiException(
           _errorMessage(response) ?? locale.messages.serviceUnavailable,
         );
@@ -99,7 +96,7 @@ class Api {
     } on TimeoutException {
       throw ApiException(locale.messages.searchTimeout);
     } on http.ClientException {
-      _noteError('/song', 'offline');
+      _noteError('offline');
       throw ApiException(locale.messages.offline);
     } on FormatException {
       throw ApiException(locale.messages.invalidAnswer);

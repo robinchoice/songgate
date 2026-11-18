@@ -68,6 +68,16 @@ class Social {
     me: Friend.fromJson(json['me']),
   );
 
+  /// The services of the friends with these names, in the order of the tiles.
+  /// Picking friends or a group picks these.
+  List<String> servicesOf(Iterable<String> names) => [
+    for (final platform in serviceOrder)
+      if (friends.any(
+        (friend) => names.contains(friend.name) && friend.platform == platform,
+      ))
+        platform,
+  ];
+
   Map<String, Object?> toJson() => {
     'friends': [for (final friend in friends) friend.toJson()],
     'groups': [for (final group in groups) group.toJson()],
@@ -212,7 +222,6 @@ String friendsMessage(
         for (final platform in chosen)
           _serviceLine(
             serviceName(platform, song.kind),
-            platform,
             friends.where((friend) => friend.platform == platform),
             song.links[platform],
           ),
@@ -221,12 +230,7 @@ String friendsMessage(
       footer;
 }
 
-String _serviceLine(
-  String name,
-  String platform,
-  Iterable<Friend> friends,
-  String? url,
-) {
+String _serviceLine(String name, Iterable<Friend> friends, String? url) {
   final names = friends.map((friend) => friend.name).join(', ');
   return '$name${names.isEmpty ? '' : ' ($names)'}: $url';
 }
