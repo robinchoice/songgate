@@ -8,7 +8,7 @@
   import Avatar from './Avatar.svelte';
 
   // Picking friends or a group also picks their services, the page can change those on its own
-  let { selected = $bindable([]), services = $bindable([]), disabled = false }: { selected: string[]; services: Platform[]; disabled?: boolean } = $props();
+  let { selected = $bindable([]), services = $bindable([]) }: { selected: string[]; services: Platform[] } = $props();
   let panel = $state<'' | 'add' | 'group' | 'invite' | 'edit'>('');
   let name = $state('');
   let platform = $state<Platform>('spotify');
@@ -58,14 +58,14 @@
         <button type="button" class="pick" onclick={() => { removeFriend(friend.name); pick(selected.filter(other => other !== friend.name)); }} aria-label={t().remove(friend.name)}><Avatar {friend} />{friend.name}<span class="remove" aria-hidden="true">×</span></button>
       {/each}
     {:else}
-      <button type="button" class="pick text" aria-pressed={!services.length} {disabled} onclick={() => { selected = []; services = []; }}>{t().everyone}</button>
+      <button type="button" class="pick text" aria-pressed={!services.length} onclick={() => { selected = []; services = []; }}>{t().everyone}</button>
       {#each social.groups as group (group.name)}
-        <button type="button" class="pick" aria-pressed={groupOn(group.members)} {disabled} onclick={() => pick(groupOn(group.members) ? [] : group.members.filter(member => social.friends.some(friend => friend.name === member)))}><span class="count" aria-hidden="true">{group.members.length}</span>{group.name}</button>
+        <button type="button" class="pick" aria-pressed={groupOn(group.members)} onclick={() => pick(groupOn(group.members) ? [] : group.members.filter(member => social.friends.some(friend => friend.name === member)))}><span class="count" aria-hidden="true">{group.members.length}</span>{group.name}</button>
       {/each}
       {#each social.friends as friend (friend.name)}
-        <button type="button" class="pick" aria-pressed={selected.includes(friend.name) && !anyGroup} {disabled} onclick={() => toggle(friend.name)} title={platforms[friend.platform]}><Avatar {friend} />{friend.name}</button>
+        <button type="button" class="pick" aria-pressed={selected.includes(friend.name) && !anyGroup} onclick={() => toggle(friend.name)} title={platforms[friend.platform]}><Avatar {friend} />{friend.name}</button>
       {/each}
-      <button type="button" class="pick text add" {disabled} onclick={() => open('add')}>{t().addNew}</button>
+      <button type="button" class="pick text add" onclick={() => open('add')}>{t().addNew}</button>
       {#if selected.length > 1 && !anyGroup}<button type="button" class="pick text add" onclick={() => open('group')}>{t().saveAsGroup}</button>{/if}
     {/if}
   </div>
@@ -90,7 +90,7 @@
   .empty { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
   .row { display: flex; flex-wrap: wrap; gap: 8px; }
   .pick { display: inline-flex; align-items: center; gap: 8px; padding: 5px 14px 5px 5px; border-radius: 999px; border: 1px solid var(--border-strong); background: rgb(255 255 255 / .03); color: var(--text); font-size: 14px; font-weight: 550; }
-  .pick:hover:not(:disabled) { background: var(--raised); }
+  .pick:hover { background: var(--raised); }
   .pick.text { padding: 9px 14px; }
   .pick.add { border-style: dashed; color: var(--muted); }
   .pick[aria-pressed="true"] { background: linear-gradient(var(--raised), var(--raised)) padding-box, var(--gradient) border-box; border: 1px solid transparent; }

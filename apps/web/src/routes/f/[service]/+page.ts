@@ -1,13 +1,11 @@
 import { messages, platforms } from '@app/shared';
-import { platformForSlug } from '#lib/friends.svelte.ts';
+import { linkedFriend } from '#lib/friends.svelte.ts';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ params, url, parent }) => {
   const m = messages[(await parent()).locale];
-  const platform = platformForSlug(params.service);
-  const name = (url.searchParams.get('name') ?? '').trim().slice(0, 40);
-  if (!platform || !name) return {};
-  return {
-    meta: { title: m.listensOn(name, platforms[platform]), description: m.saveFriendMeta(name, platforms[platform]) },
-  };
+  const friend = linkedFriend(url.searchParams.get('name'), params.service);
+  if (!friend) return { friend };
+  const service = platforms[friend.platform];
+  return { friend, meta: { title: m.listensOn(friend.name, service), description: m.saveFriendMeta(friend.name, service) } };
 };

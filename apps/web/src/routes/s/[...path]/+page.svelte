@@ -22,7 +22,7 @@
   }
 </script>
 
-<svelte:head><title>{[song.source.title, song.source.artist].filter(Boolean).join(' · ')} · Songgate</title></svelte:head>
+<svelte:head><title>{data.meta.title} · Songgate</title></svelte:head>
 
 {#if song.source.artworkUrl}<div class="backdrop" aria-hidden="true" style:background-image="url({JSON.stringify(song.source.artworkUrl)})"></div>{/if}
 <div class="shell">

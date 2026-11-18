@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { inviteSlugs, platformSchema, type Friend, type Platform } from '@app/shared';
+import { inviteSlugs, platformSchema, type Friend } from '@app/shared';
 
 // Friends stay in this browser. Nothing about them reaches our server.
 type Saved = { friends: Friend[]; groups: { name: string; members: string[] }[]; me: Friend | null };
@@ -54,6 +54,10 @@ export function setMe(me: Friend) {
 
 export const inviteUrl = (origin: string, me: Friend) => `${origin}/f/${inviteSlugs[me.platform]}?name=${encodeURIComponent(me.name)}`;
 
-export function platformForSlug(slug: string): Platform | undefined {
-  return (Object.keys(inviteSlugs) as Platform[]).find(platform => inviteSlugs[platform] === slug);
+// Who a link names: an invite (/f/<service>?name=…) or the sender of a share page (?from=…&service=…).
+// The name is capped like the fields that save one.
+export function linkedFriend(name: string | null, slug: string | null | undefined): Friend | null {
+  const trimmed = (name ?? '').trim().slice(0, 40);
+  const platform = platformSchema.options.find(platform => inviteSlugs[platform] === slug);
+  return trimmed && platform ? { name: trimmed, platform } : null;
 }

@@ -1,26 +1,23 @@
 <script lang="ts">
-  import { page } from '$app/state';
   import Connect from '#lib/components/Connect.svelte';
   import PleasanceFooter from '#lib/components/PleasanceFooter.svelte';
-  import { platformForSlug } from '#lib/friends.svelte.ts';
-  import { platforms } from '@app/shared';
   import { t } from '#lib/i18n.ts';
 
-  const platform = platformForSlug(page.params.service ?? '');
-  const name = (page.url.searchParams.get('name') ?? '').trim().slice(0, 40);
+  let { data } = $props();
+  const friend = $derived(data.friend);
 </script>
 
 <svelte:head>
-  <title>{platform && name ? t().listensOn(name, platforms[platform]) : t().invite} · Songgate</title>
+  <title>{data.meta?.title ?? t().invite} · Songgate</title>
 </svelte:head>
 
 <div class="shell">
   <header><a href="/" class="brand"><img class="brand-icon" src="/favicon.svg" alt="" width="34" height="34" /> Songgate</a></header>
   <main>
-    {#if !platform || !name}
-      <section class="card"><h1>{t().inviteIncomplete}</h1><p>{t().askNewInvite}</p></section>
+    {#if friend}
+      <section class="card"><Connect name={friend.name} platform={friend.platform} /></section>
     {:else}
-      <section class="card"><Connect {name} {platform} /></section>
+      <section class="card"><h1>{t().inviteIncomplete}</h1><p>{t().askNewInvite}</p></section>
     {/if}
   </main>
   <PleasanceFooter />

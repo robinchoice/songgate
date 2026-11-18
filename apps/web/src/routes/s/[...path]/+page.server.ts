@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { countries, messages, serviceName, servicesFor, type Song, sourceLink } from '@app/shared';
-import { platformForSlug } from '#lib/friends.svelte.ts';
+import { linkedFriend } from '#lib/friends.svelte.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, fetch, request, url, locals }) => {
@@ -16,9 +16,7 @@ export const load: PageServerLoad = async ({ params, fetch, request, url, locals
   const song = body as Song;
   const found = servicesFor(song.source.kind).filter(platform => song.links[platform].found).map(platform => serviceName(platform, song.source.kind));
   // Optional sender, see shareUrl in packages/shared
-  const name = (url.searchParams.get('from') ?? '').trim().slice(0, 40);
-  const platform = platformForSlug(url.searchParams.get('service') ?? '');
-  const from = name && platform ? { name, platform } : null;
+  const from = linkedFriend(url.searchParams.get('from'), url.searchParams.get('service'));
   return {
     song,
     from,
