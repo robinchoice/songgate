@@ -29,8 +29,10 @@ const SECURITY_HEADERS = {
 
 export const handle: Handle = async ({ event, resolve }) => {
   const { pathname, search } = event.url;
-  // ?lang= from a link, else the language chosen in the footer (see $lib/i18n.ts), else the browser's
-  const locale = LEGAL[pathname] ?? pickLocale(event.url.searchParams.get('lang') ?? event.cookies.get('locale') ?? event.request.headers.get('accept-language'));
+  // ?lang= from a link, else the language chosen in the footer (see $lib/i18n.ts), else the browser's.
+  // A language we do not speak falls through to the next.
+  const wishes = [event.url.searchParams.get('lang'), event.cookies.get('locale'), event.request.headers.get('accept-language')];
+  const locale = LEGAL[pathname] ?? pickLocale(wishes.filter(Boolean).join(','));
   event.locals.locale = locale;
   const response = pathname.startsWith('/api/') || AGENT_PATH.test(pathname)
     ? await proxy(event.request, `${API_ORIGIN}${pathname}${search}`)

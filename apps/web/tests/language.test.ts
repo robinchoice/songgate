@@ -24,3 +24,10 @@ test('the API answers errors in the chosen language', async ({ request }) => {
     expect((await response.json()).error).toMatch(new RegExp(`^${start}`));
   }
 });
+
+test('regression: an unknown ?lang= shows German to an English browser', async ({ request }) => {
+  const html = await (await request.get('/?lang=xx', { headers: { 'accept-language': 'en-US,en;q=0.9' } })).text();
+  expect(html).toContain('<html lang="en">');
+  // The link still wins over the browser when we speak its language
+  expect(await (await request.get('/?lang=de', { headers: { 'accept-language': 'en-US' } })).text()).toContain('<html lang="de">');
+});
