@@ -83,5 +83,5 @@
   :global(.button.primary:hover:not(:disabled)) { filter: brightness(1.05); }
   :global(.button.ghost) { background: transparent; color: var(--text); border-color: var(--border-strong); font-weight: 550; }
   :global(.button.ghost:hover:not(:disabled)) { background: var(--raised); }
-  :global(:focus-visible) { outline: 3px solid var(--accent); outline-offset: 4px; }
+  :global(:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>
