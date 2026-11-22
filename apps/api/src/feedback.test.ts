@@ -60,3 +60,10 @@ test('limits reports per address', async () => {
   for (let i = 0; i < 10; i++) expect((await send({ kind: 'idea', message: 'Mehr Dienste', context }, ip)).status).toBe(200);
   expect((await send({ kind: 'idea', message: 'Mehr Dienste', context }, ip)).status).toBe(429);
 });
+
+test('regression: rejected screenshots do not count against the limit', async () => {
+  const ip = crypto.randomUUID();
+  const gif = Buffer.from('GIF89a').toString('base64');
+  for (let i = 0; i < 10; i++) expect((await send({ kind: 'bug', message: 'Kaputt hier', screenshot: gif, context }, ip)).status).toBe(400);
+  expect((await send({ kind: 'bug', message: 'Kaputt hier', screenshot: PNG, context }, ip)).status).toBe(200);
+});

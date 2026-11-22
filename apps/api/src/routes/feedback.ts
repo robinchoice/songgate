@@ -60,12 +60,12 @@ export const feedbackRoutes = (db: Database) =>
         const error = key === 'feedbackTooShort' || key === 'invalidEmail' ? t(c)[key] : t(c).feedbackIncomplete;
         return c.json({ error }, 400);
       }
-      if (!(await reportsPerIp.hit(db, clientIp(c)))) {
-        return c.json({ error: t(c).feedbackTooMany }, 429);
-      }
       const { kind, message, email, context, screenshot: base64 } = parsed.data;
       const screenshot = base64 ? Buffer.from(base64, 'base64') : null;
       if (screenshot && !imageType(screenshot)) return c.json({ error: t(c).invalidImage }, 400);
+      if (!(await reportsPerIp.hit(db, clientIp(c)))) {
+        return c.json({ error: t(c).feedbackTooMany }, 429);
+      }
 
       const fullContext = { ...context, api: process.env.APP_VERSION || 'dev' };
       const [row] = await db
