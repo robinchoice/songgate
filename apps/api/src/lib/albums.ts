@@ -1,7 +1,7 @@
 import type { Conversion, Platform } from '@app/shared';
 import { YTNodes } from 'youtubei.js';
 import { z } from 'zod';
-import { appleArtwork600, appleCatalog, appleUrl, codeFailure, deezerData, https, itunesResults, normalize, providerCall, recording, pageMeta, ResolutionError, youtube, type MusicLink, type Session } from './providers';
+import { appleArtwork600, appleCatalog, appleUrl, codeFailure, deezerData, deezerFound, https, itunesResults, normalize, providerCall, recording, pageMeta, ResolutionError, youtube, type MusicLink, type Session } from './providers';
 import { spotifyTrackIds } from './spotify';
 import { tidalAlbums, tidalCatalog, tidalPageMeta, tidalSearch } from './tidal';
 
@@ -97,9 +97,7 @@ export function loadAlbum(link: MusicLink, current: Session, youtubeMusic: YouTu
       if (!meta) throw new ResolutionError('SOURCE_UNAVAILABLE');
       album = { ...upcCode(found?.upc), ...meta, url: `https://tidal.com/album/${link.id}`, artworkUrl: https(pageMeta(html, 'og:image')), ...(found?.firstTrack ? { firstTrack: found.firstTrack } : {}) };
     } else {
-      // Deezer reports unknown albums as an error object with status 200
-      const body = await get(`https://api.deezer.com/album/${link.id}`, {});
-      if (z.object({ error: z.unknown() }).safeParse(body).data?.error) throw new ResolutionError('SOURCE_UNAVAILABLE');
+      const body = deezerFound(await get(`https://api.deezer.com/album/${link.id}`, {}));
       const found = deezerAlbum.parse(body);
       const firstTrack = found.tracks?.data[0]?.title;
       album = { ...upcCode(found.upc), title: found.title, artist: found.artist.name, url: `https://www.deezer.com/album/${found.id}`, artworkUrl: https(found.cover_xl), ...(firstTrack ? { firstTrack } : {}) };

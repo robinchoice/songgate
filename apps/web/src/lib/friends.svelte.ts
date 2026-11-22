@@ -1,5 +1,7 @@
 import { z } from 'zod';
-import { inviteSlugs, platformSchema, type Friend } from '@app/shared';
+import { inviteSlugs, platformSchema, platforms, type Friend } from '@app/shared';
+import { t } from '#lib/i18n.ts';
+import { toast, toastError } from '#lib/toast.svelte.ts';
 
 // Friends stay in this browser. Nothing about them reaches our server.
 type Saved = { friends: Friend[]; groups: { name: string; members: string[] }[]; me: Friend | null };
@@ -47,12 +49,27 @@ export function addGroup(name: string, members: string[]) {
   save();
 }
 
-export function setMe(me: Friend) {
+function setMe(me: Friend) {
   social.me = me;
   save();
 }
 
 export const inviteUrl = (origin: string, me: Friend) => `${origin}/f/${inviteSlugs[me.platform]}?name=${encodeURIComponent(me.name)}`;
+
+// Saves who one is and sends one's own invite, copied where the browser cannot share; false when not sent
+export async function shareInvite(origin: string, me: Friend, copied: string) {
+  setMe(me);
+  const url = inviteUrl(origin, me);
+  const text = t().inviteText(platforms[me.platform]);
+  try {
+    if (typeof navigator.share === 'function') await navigator.share({ text, url });
+    else { await navigator.clipboard.writeText(`${text}\n${url}`); toast(copied); }
+    return true;
+  } catch (e) {
+    if (!(e instanceof DOMException && e.name === 'AbortError')) toastError(t().shareFailed);
+    return false;
+  }
+}
 
 // Who a link names: an invite (/f/<service>?name=…) or the sender of a share page (?from=…&service=…).
 // The name is capped like the fields that save one.

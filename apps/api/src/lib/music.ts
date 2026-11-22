@@ -2,7 +2,7 @@ import { isPodcast, platformSchema, type Conversion, type ConversionInput, type 
 import { z } from 'zod';
 import { findAlbums, loadAlbum, youtubeAlbums, type YouTubeAlbums } from './albums';
 import { findPodcasts, loadPodcast, podcastApps, youtubePodcasts, type AppleShow, type Podcast, type YouTubePodcasts } from './podcasts';
-import { appleArtwork600, appleCatalog, appleUrl, codeFailure, deezerData, https, itunesResults, providerCall, recording, ResolutionError, session, pageMeta, youtube, type Fetch, type MusicLink, type Session } from './providers';
+import { appleArtwork600, appleCatalog, appleUrl, codeFailure, deezerData, deezerFound, https, itunesResults, providerCall, recording, ResolutionError, session, pageMeta, youtube, type Fetch, type MusicLink, type Session } from './providers';
 import { spotifyCandidates } from './spotify';
 import { tidalCatalog, tidalPageMeta, tidalSearch, tidalTracks } from './tidal';
 
@@ -210,9 +210,7 @@ function loadSource(parsed: MusicLink, current: Session): Promise<Track> {
       if (!meta) throw new ResolutionError('SOURCE_UNAVAILABLE');
       source = { ...isrcCode(found?.isrc), ...meta, url: `https://tidal.com/track/${parsed.id}`, ...(found?.durationSeconds ? { durationSeconds: found.durationSeconds } : {}), artworkUrl: https(pageMeta(html, 'og:image')) };
     } else {
-      // Deezer reports unknown tracks as an error object with status 200
-      const body = await get(`https://api.deezer.com/track/${parsed.id}`, {});
-      if (z.object({ error: z.unknown() }).safeParse(body).data?.error) throw new ResolutionError('SOURCE_UNAVAILABLE');
+      const body = deezerFound(await get(`https://api.deezer.com/track/${parsed.id}`, {}));
       const track = deezerTrack.parse(body);
       source = { ...isrcCode(track.isrc), title: track.title, artist: track.artist.name, url: `https://www.deezer.com/track/${track.id}`, ...(track.duration === undefined ? {} : { durationSeconds: track.duration }), artworkUrl: https(track.album?.cover_xl) };
     }

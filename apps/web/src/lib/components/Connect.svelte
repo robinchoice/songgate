@@ -2,9 +2,9 @@
   import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { inviteSlugs, platformSchema, platforms, type Platform } from '@app/shared';
-  import { addFriend, inviteUrl, loadFriends, setMe, social } from '#lib/friends.svelte.ts';
+  import { addFriend, loadFriends, shareInvite, social } from '#lib/friends.svelte.ts';
   import { t } from '#lib/i18n.ts';
-  import { toast, toastError } from '#lib/toast.svelte.ts';
+  import { toastError } from '#lib/toast.svelte.ts';
   import Avatar from './Avatar.svelte';
   import Logo from './Logo.svelte';
 
@@ -25,14 +25,7 @@
 
   async function answer(mine: Platform) {
     if (!myName.trim()) { toastError(t().nameFirst); return; }
-    const me = { name: myName.trim().slice(0, 40), platform: mine };
-    setMe(me);
-    const url = inviteUrl(page.url.origin, me);
-    const text = t().inviteText(platforms[mine]);
-    try {
-      if (typeof navigator.share === 'function') await navigator.share({ text, url });
-      else { await navigator.clipboard.writeText(`${text}\n${url}`); toast(t().inviteCopiedTo(name)); }
-    } catch (e) { if (!(e instanceof DOMException && e.name === 'AbortError')) toastError(t().shareFailed); }
+    await shareInvite(page.url.origin, { name: myName.trim().slice(0, 40), platform: mine }, t().inviteCopiedTo(name));
   }
 </script>
 

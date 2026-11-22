@@ -1,7 +1,7 @@
 import type { Conversion, Platform, PodcastApp } from '@app/shared';
 import { YTNodes } from 'youtubei.js';
 import { z } from 'zod';
-import { appleArtwork600, deezerData, https, itunesResults, normalize, pageMeta, providerCall, ResolutionError, youtube, type MusicLink, type Session } from './providers';
+import { appleArtwork600, deezerData, deezerFound, https, itunesResults, normalize, pageMeta, providerCall, ResolutionError, youtube, type MusicLink, type Session } from './providers';
 import { spotifyApi } from './spotify';
 
 // Shows and episodes. There is no ISRC for podcasts: a show is found by its name, an episode by
@@ -193,9 +193,7 @@ export function loadPodcast(link: MusicLink, current: Session, youtubeMusic: You
         ...(released ? { released } : {}), ...(duration > 0 ? { durationSeconds: duration } : {}),
       };
     } else if (link.platform === 'deezer') {
-      // Deezer reports unknown shows and episodes as an error object with status 200
-      const body = await get(`https://api.deezer.com/${link.kind === 'podcast' ? 'podcast' : 'episode'}/${link.id}`, {});
-      if (z.object({ error: z.unknown() }).safeParse(body).data?.error) throw new ResolutionError('SOURCE_UNAVAILABLE');
+      const body = deezerFound(await get(`https://api.deezer.com/${link.kind === 'podcast' ? 'podcast' : 'episode'}/${link.id}`, {}));
       if (link.kind === 'podcast') {
         const show = deezerShow.parse(body);
         // Deezer names no publisher

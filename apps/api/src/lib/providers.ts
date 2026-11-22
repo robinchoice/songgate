@@ -33,6 +33,11 @@ export function recording(title: string, artists: string[]) {
 }
 export const itunesResults = (body: unknown) => z.object({ results: z.array(z.unknown()) }).parse(body).results;
 export const deezerData = (body: unknown) => z.object({ data: z.array(z.unknown()) }).parse(body).data;
+// Deezer reports unknown tracks, albums, shows and episodes as an error object with status 200
+export function deezerFound(body: unknown) {
+  if (z.object({ error: z.unknown() }).safeParse(body).data?.error) throw new ResolutionError('SOURCE_UNAVAILABLE');
+  return body;
+}
 export const https = (url?: string | null) => url?.startsWith('https://') ? url : null;
 // Apple's artwork URLs name their size, the iTunes API hands out 100×100
 export const appleArtwork600 = (url?: string | null) => url?.replace('/100x100bb.', '/600x600bb.');
@@ -114,7 +119,16 @@ export function codeFailure(code: 'ISRC' | 'UPC', provider: Platform, signal: Ab
   if (!signal.aborted) captureMessage(`${code} lookup failure`, { level: 'warning', tags: { provider } });
 }
 
-export const youtube = (signal: AbortSignal) => Innertube.create({
-  retrieve_player: false, enable_session_cache: false,
-  fetch: Object.assign((url: Parameters<typeof fetch>[0], init?: RequestInit) => fetch(url, { ...init, signal }), { preconnect: fetch.preconnect }),
-});
+// One YouTube client per lookup: creating one fetches YouTube's session data
+const clients = new WeakMap<AbortSignal, Promise<Innertube>>();
+export function youtube(signal: AbortSignal) {
+  let client = clients.get(signal);
+  if (!client) {
+    client = Innertube.create({
+      retrieve_player: false, enable_session_cache: false,
+      fetch: Object.assign((url: Parameters<typeof fetch>[0], init?: RequestInit) => fetch(url, { ...init, signal }), { preconnect: fetch.preconnect }),
+    });
+    clients.set(signal, client);
+  }
+  return client;
+}

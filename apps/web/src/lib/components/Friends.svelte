@@ -2,9 +2,8 @@
   import { onMount } from 'svelte';
   import { renderSVG } from 'uqr';
   import { platformSchema, platforms, type Platform } from '@app/shared';
-  import { addFriend, addGroup, inviteUrl, loadFriends, removeFriend, setMe, social } from '#lib/friends.svelte.ts';
+  import { addFriend, addGroup, inviteUrl, loadFriends, removeFriend, shareInvite, social } from '#lib/friends.svelte.ts';
   import { t } from '#lib/i18n.ts';
-  import { toast, toastError } from '#lib/toast.svelte.ts';
   import Avatar from './Avatar.svelte';
 
   // Picking friends or a group also picks their services, the page can change those on its own
@@ -36,15 +35,7 @@
   }
 
   async function invite(value: string) {
-    const me = { name: value, platform };
-    setMe(me);
-    const url = inviteUrl(location.origin, me);
-    const text = t().inviteText(platforms[platform]);
-    try {
-      if (typeof navigator.share === 'function') await navigator.share({ text, url });
-      else { await navigator.clipboard.writeText(`${text}\n${url}`); toast(t().inviteCopied); }
-      panel = '';
-    } catch (e) { if (!(e instanceof DOMException && e.name === 'AbortError')) toastError(t().shareFailed); }
+    if (await shareInvite(location.origin, { name: value, platform }, t().inviteCopied)) panel = '';
   }
 </script>
 
