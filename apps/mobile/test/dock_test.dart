@@ -255,6 +255,10 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       await tester.pumpAndSettle();
       expect(find.text('Döner', findRichText: true), findsNothing);
+      // The finger drifts onto a tile of the new layout
+      await gesture.moveTo(tester.getCenter(_link('Döner')));
+      await tester.pump();
+      expect(find.text('Döner', findRichText: true), findsNothing);
       await gesture.up();
       await tester.pumpAndSettle();
       expect(

@@ -42,6 +42,8 @@ class _AppDockState extends ConsumerState<AppDock>
   double? _pointer;
   int _hot = -1;
   bool _wanted = false;
+  // A finger held through a layout change points at nothing until the next one goes down
+  bool _stale = false;
 
   @override
   void initState() {
@@ -61,7 +63,10 @@ class _AppDockState extends ConsumerState<AppDock>
   @override
   void didChangeMetrics() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _portal.isShowing) _cancel();
+      if (mounted && _portal.isShowing) {
+        _stale = true;
+        _cancel();
+      }
     });
   }
 
@@ -167,7 +172,9 @@ class _AppDockState extends ConsumerState<AppDock>
   void _track(Offset global) {
     final overlay = _overlay;
     final geometry = _geometry();
-    if (overlay == null || geometry == null || !_portal.isShowing) return;
+    if (_stale || overlay == null || geometry == null || !_portal.isShowing) {
+      return;
+    }
     final local = overlay.globalToLocal(global);
     _pointer = local.dx;
     final row = _layout(geometry.band, geometry.area);
@@ -211,6 +218,7 @@ class _AppDockState extends ConsumerState<AppDock>
           behavior: HitTestBehavior.opaque,
           onTap: () => open ? _close() : _show(),
           onPanStart: (details) async {
+            _stale = false;
             await _show();
             if (mounted) _track(details.globalPosition);
           },
@@ -242,12 +250,16 @@ class _AppDockState extends ConsumerState<AppDock>
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             excludeFromSemantics: true,
-            onPanDown: (details) => _track(details.globalPosition),
+            onPanDown: (details) {
+              _stale = false;
+              _track(details.globalPosition);
+            },
             onPanStart: (details) => _track(details.globalPosition),
             onPanUpdate: (details) => _track(details.globalPosition),
             onPanEnd: (_) => _release(),
             onPanCancel: _cancel,
             onTapUp: (details) {
+              if (_stale) return;
               final overlay = _overlay;
               if (overlay == null) return _close();
               final index = _hit(
