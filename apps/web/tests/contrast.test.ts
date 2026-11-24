@@ -4,7 +4,8 @@ import { expect, test } from '@playwright/test';
 
 // WCAG contrast of the colour pairs from starter's design rules, on Songgate's
 // dark ground. Values come from where they are defined: the rendered web layout
-// and the app's brand.dart. Text needs 4.5:1, a focus ring 3:1.
+// and the app's brand.dart. Text needs 4.5:1, which --accent also meets for the
+// focus ring's 3:1.
 
 function luminance(hex: string): number {
   const [r, g, b] = [1, 3, 5].map((i) => {
@@ -37,7 +38,7 @@ const positions = Array.from({ length: 601 }, (_, i) => 1 + i / 100);
 
 test('web layout colours keep their contrast', async ({ page }) => {
   await page.goto('/');
-  const colors = await page.evaluate(() => {
+  const colors: Record<string, string> = await page.evaluate(() => {
     const root = getComputedStyle(document.documentElement);
     const app = document.querySelector('.root');
     const names = ['--bg', '--surface', '--raised', '--text', '--muted', '--error', '--ink'];
@@ -51,12 +52,11 @@ test('web layout colours keep their contrast', async ({ page }) => {
   }
   // Ink on filled signals and on gradient surfaces, glow as text on the dark ground
   pairs.push(['--ink', '--error', 4.5]);
-  const band: Record<string, string> = { ...colors };
   for (const p of positions) {
-    band[`glow ${p}`] = bandColor(p, GLOW);
+    colors[`glow ${p}`] = bandColor(p, GLOW);
     pairs.push(['--ink', `glow ${p}`, 4.5], [`glow ${p}`, '--bg', 4.5], [`glow ${p}`, '--surface', 4.5]);
   }
-  expect(failures(band, pairs)).toEqual([]);
+  expect(failures(colors, pairs)).toEqual([]);
 });
 
 test('app brand colours keep their contrast', () => {

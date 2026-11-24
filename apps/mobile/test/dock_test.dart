@@ -224,14 +224,8 @@ void main() {
         () => Future<void>.delayed(const Duration(milliseconds: 100)),
       );
       await tester.pumpAndSettle();
-      final placeholder = find.byWidgetPredicate(
-        (w) =>
-            w is DecoratedBox &&
-            w.decoration is BoxDecoration &&
-            (w.decoration as BoxDecoration).color == const Color(0xFF121117),
-      );
       expect(
-        placeholder,
+        find.byKey(const ValueKey('tile-placeholder')),
         findsOneWidget,
         reason: 'Music Hub and Savor load, Döner falls back',
       );

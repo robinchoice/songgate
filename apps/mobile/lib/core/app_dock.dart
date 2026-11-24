@@ -437,6 +437,7 @@ class _Tile extends StatelessWidget {
       );
     }
     const placeholder = DecoratedBox(
+      key: ValueKey('tile-placeholder'),
       decoration: BoxDecoration(
         color: Color(0xFF121117),
         borderRadius: BorderRadius.all(Radius.circular(9)),
