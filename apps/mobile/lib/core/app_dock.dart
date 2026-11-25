@@ -42,7 +42,6 @@ class _AppDockState extends ConsumerState<AppDock>
   double? _pointer;
   int _hot = -1;
   bool _wanted = false;
-  // A finger held through a layout change points at nothing until the next one goes down
   bool _stale = false;
 
   @override
