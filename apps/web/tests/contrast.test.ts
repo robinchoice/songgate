@@ -4,8 +4,8 @@ import { expect, test } from '@playwright/test';
 
 // WCAG contrast of the colour pairs from starter's design rules, on Songgate's
 // dark ground. Values come from where they are defined: the rendered web layout
-// and the app's brand.dart. Text needs 4.5:1, which --accent also meets for the
-// focus ring's 3:1.
+// and the app's brand.dart. Text needs 4.5:1, a focus ring 3:1. --accent draws
+// the focus ring but is held to 4.5:1, so it passes both.
 
 function luminance(hex: string): number {
   const [r, g, b] = [1, 3, 5].map((i) => {
