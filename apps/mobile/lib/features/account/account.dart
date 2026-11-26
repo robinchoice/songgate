@@ -82,6 +82,10 @@ class AccountController extends AsyncNotifier<Profile?> {
   // The confirmed number stays on this phone only, to skip it when searching
   static const _phoneKey = 'own_phone';
 
+  // Outputs of the numbers already checked, per E.164 number. They never
+  // leave the phone and go with the account or the own number.
+  static const _discoverKey = 'discover_cache';
+
   /// Revision of the contacts document on the server this device last saw
   int revision = 0;
 
@@ -209,7 +213,7 @@ class AccountController extends AsyncNotifier<Profile?> {
     final json = await _api.request(
       'POST',
       '/me/phone/verify',
-      body: {'code': code},
+      body: {'phone': phone, 'code': code},
       auth: true,
     ) as Map<String, dynamic>;
     await _write(_phoneKey, phone);
@@ -226,6 +230,7 @@ class AccountController extends AsyncNotifier<Profile?> {
       auth: true,
     ) as Map<String, dynamic>;
     await _delete(_phoneKey);
+    await _delete(_discoverKey);
     final profile = Profile.fromJson(json['user'] as Map<String, dynamic>);
     await _save(profile);
     return profile;
@@ -233,6 +238,22 @@ class AccountController extends AsyncNotifier<Profile?> {
 
   /// The number confirmed on this phone, E.164, null if unknown.
   Future<String?> ownPhone() => _read(_phoneKey);
+
+  Future<Map<String, String>> readDiscoverCache() async {
+    try {
+      final saved = jsonDecode(await _read(_discoverKey) ?? '{}');
+      if (saved is! Map) return {};
+      return {
+        for (final MapEntry(:key, :value) in saved.entries)
+          if (key is String && value is String) key: value,
+      };
+    } on FormatException {
+      return {};
+    }
+  }
+
+  Future<void> writeDiscoverCache(Map<String, String> outputs) =>
+      _write(_discoverKey, jsonEncode(outputs));
 
   Future<void> logout() async {
     try {
@@ -282,6 +303,7 @@ class AccountController extends AsyncNotifier<Profile?> {
       _revisionKey,
       _dirtyKey,
       _phoneKey,
+      _discoverKey,
     ]) {
       await _delete(key);
     }

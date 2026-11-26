@@ -3,7 +3,10 @@ import { z } from 'zod';
 const answerSchema = z.looseObject({ success: z.string() });
 
 // Through seven.io (Kiel). Without SEVEN_API_KEY the SMS goes to the log, so
-// local dev and tests need no account. Code 100 means accepted by the gateway.
+// local dev and tests need no account; in production that would put numbers
+// and codes into the log, so there is no SMS then. Code 100 means accepted by the gateway.
+export const smsReady = () => !!process.env.SEVEN_API_KEY || process.env.NODE_ENV !== 'production';
+
 export async function sendSms(to: string, text: string) {
   const key = process.env.SEVEN_API_KEY;
   if (!key) {

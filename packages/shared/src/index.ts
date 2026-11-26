@@ -182,8 +182,7 @@ export const socialUpdateSchema = z.object({ social: socialSchema, revision: z.n
 
 // Contact discovery by phone number, see apps/api/src/lib/oprf.ts. Numbers travel only in E.164.
 export const phoneSchema = z.object({ phone: z.string().regex(/^\+[1-9]\d{6,14}$/, 'phoneInvalid') });
-export const phoneVerifySchema = z.object({ code: z.string().regex(/^\d{6}$/, 'codeWrong') });
+export const phoneVerifySchema = phoneSchema.extend({ code: z.string().regex(/^\d{6}$/, 'codeWrong') });
 const base64Element = z.base64().length(44);
 // Up to 200 numbers per request, which the API evaluates in under a second
 export const discoverEvaluateSchema = z.object({ blinded: z.array(base64Element).min(1).max(200) });
-export const discoverProfilesSchema = z.object({ keys: z.array(z.string().regex(/^[0-9a-f]{64}$/)).min(1).max(500) });

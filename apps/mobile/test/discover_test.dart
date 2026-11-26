@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:musiclink/features/account/account.dart';
 import 'package:musiclink/features/account/account_screens.dart';
 import 'package:musiclink/features/account/discover.dart';
+import 'package:musiclink/features/account/oprf.dart';
 import 'package:musiclink/features/friends/discover_screen.dart';
 import 'package:musiclink/features/friends/friends_screen.dart';
 import 'package:musiclink/features/friends/social.dart';
@@ -118,7 +119,7 @@ void main() {
   }
 
   void discoverable(int i, String id, String platform) {
-    server.discoverable[server.keyOf(e164(i))] = {
+    server.directory[e164(i)] = {
       'id': id,
       'name': 'Profilname $i',
       'platform': platform,
@@ -180,6 +181,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('✓ Über deine Nummer auffindbar'), findsOneWidget);
       expect(server.user['discoverable'], isTrue);
+      // The code is bound to the number it was sent to
+      expect(server.verifiedPhone, '+4915123456789');
       await tester.tap(find.text('Fertig'));
       await tester.pumpAndSettle();
 
@@ -263,11 +266,10 @@ void main() {
         discoverable(2, benId, 'youtubeMusic');
         discoverable(9, myId, 'deezer');
         // Keys of people unknown to this address book
-        server.discoverable['f' * 64] = {
-          'id': '44444444-4444-4444-8444-444444444444',
-          'name': 'Fremd',
-          'platform': 'spotify',
-        };
+        server.strangers.add({
+          'tag': 'f' * 32,
+          'box': base64Encode(List.filled(40, 7)),
+        });
         contacts.entries = [
           AddressBookEntry('Lea Meyer', [national(1), 'abc']),
           // The same number twice and in two forms counts once
@@ -283,14 +285,9 @@ void main() {
 
         // Three distinct valid numbers, the own one left out
         expect(server.evaluateSizes, [3]);
-        // Only matched keys go back, and no number is sent in clear
-        final profileRequest = server.requests.singleWhere(
-          (request) => request.url.path.endsWith('/discover/profiles'),
-        );
-        expect((jsonDecode(profileRequest.body)['keys'] as List).toSet(), {
-          server.keyOf(e164(1)),
-          server.keyOf(e164(2)),
-        });
+        // Everything discoverable comes down, nothing about the matches goes up
+        expect(server.calls('GET'), contains('/discover/directory'));
+        expect(server.calls('POST'), isNot(contains('/discover/profiles')));
         for (final request in server.requests) {
           expect(request.body, isNot(contains('+4915110000')));
           expect(request.body, isNot(contains('0151')));
@@ -303,7 +300,7 @@ void main() {
         );
         expect(
           find.text(
-            'Angezeigt wird der Name aus deinem Adressbuch, dazu der Dienst aus dem Profil.',
+            'Die Namen kommen aus deinem Adressbuch. Fehlt ein Name, siehst du den Profilnamen. Der Dienst kommt aus dem Profil.',
           ),
           findsOneWidget,
         );
@@ -339,7 +336,7 @@ void main() {
         final c = await container();
         final result = await c.read(discoveryProvider).run();
         expect(server.evaluateSizes, [200, 200, 1]);
-        expect(result.limit, isNull);
+        expect(result.limited, isFalse);
         expect(
           [for (final m in result.matches) (m.name, m.id, m.platform)],
           [
@@ -351,7 +348,7 @@ void main() {
       timeout: const Timeout(Duration(minutes: 2)),
     );
 
-    testWidgets('429 shows the API text and what matched until then', (
+    testWidgets('429 says how far it got and shows what matched until then', (
       tester,
     ) async {
       logIn();
@@ -364,7 +361,13 @@ void main() {
       ];
       await pump(tester, const DiscoverScreen());
       expect(server.evaluateSizes, [200, 100]);
-      expect(find.text('Tageslimit erreicht.'), findsOneWidget);
+      expect(
+        find.text(
+          'Heute ließen sich 200 von 300 Nummern prüfen. Morgen geht es weiter.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Noch niemand'), findsNothing);
       expect(
         find.text('1 Person aus deinem Adressbuch ist bei Songgate.'),
         findsOneWidget,
@@ -386,11 +389,144 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Meine Einladung teilen'), findsOneWidget);
-      expect(
-        server.requests.where((r) => r.url.path.endsWith('/discover/profiles')),
-        isEmpty,
-      );
     });
+
+    test('regression: a wrong output cannot open a box', () {
+      final output = server.keyOf(e164(1));
+      final box = server.sealBox(output, {
+        'id': lisaId,
+        'name': 'Lea',
+        'platform': 'appleMusic',
+      });
+      expect(openDirectoryBox(hexBytes(output), box), {
+        'id': lisaId,
+        'name': 'Lea',
+        'platform': 'appleMusic',
+      });
+      expect(openDirectoryBox(hexBytes(server.keyOf(e164(2))), box), isNull);
+      expect(openDirectoryBox(hexBytes(output), 'not base64!'), isNull);
+    });
+
+    test(
+      'regression: a box under the right tag but another key is ignored',
+      () async {
+        logIn();
+        final other = server.entryOf(e164(2), {
+          'id': benId,
+          'name': 'Ben',
+          'platform': 'tidal',
+        });
+        server.strangers.add({
+          'tag': discoverTag(hexBytes(server.keyOf(e164(1)))),
+          'box': other['box']!,
+        });
+        contacts.entries = [
+          AddressBookEntry('Lea', [e164(1)]),
+        ];
+        final c = await container();
+        final result = await c.read(discoveryProvider).run();
+        expect(result.matches, isEmpty);
+      },
+    );
+
+    test('a later run continues where the daily quota stopped', () async {
+      logIn();
+      server.evaluateQuota = 200;
+      discoverable(5, lisaId, 'appleMusic');
+      discoverable(240, benId, 'tidal');
+      contacts.entries = [
+        for (var i = 1; i <= 250; i++)
+          AddressBookEntry('Kontakt $i', [e164(i)]),
+      ];
+      final c = await container();
+      final first = await c.read(discoveryProvider).run();
+      expect(server.evaluateSizes, [200, 50]);
+      expect((first.limited, first.checked, first.total), (true, 200, 250));
+      expect([for (final m in first.matches) m.name], ['Kontakt 5']);
+
+      server.evaluateQuota = 250;
+      server.evaluateSizes.clear();
+      final second = await c.read(discoveryProvider).run();
+      // Only the 50 numbers not checked yet go out
+      expect(server.evaluateSizes, [50]);
+      expect((second.limited, second.checked, second.total), (false, 250, 250));
+      expect(
+        [for (final m in second.matches) m.name],
+        ['Kontakt 240', 'Kontakt 5'],
+      );
+    }, timeout: const Timeout(Duration(minutes: 2)));
+
+    test(
+      'the checked outputs go with the own number and the account',
+      () async {
+        logIn();
+        const storage = FlutterSecureStorage();
+        contacts.entries = [
+          AddressBookEntry('Lea', [e164(1)]),
+        ];
+        final c = await container();
+        await c.read(discoveryProvider).run();
+        expect(await storage.read(key: 'discover_cache'), contains(e164(1)));
+        await c.read(accountProvider.notifier).removePhone();
+        expect(await storage.read(key: 'discover_cache'), isNull);
+        server.user = {...server.user, 'discoverable': true};
+        await c.read(discoveryProvider).run();
+        expect(await storage.read(key: 'discover_cache'), isNotNull);
+        await c.read(accountProvider.notifier).logout();
+        expect(await storage.read(key: 'discover_cache'), isNull);
+      },
+    );
+
+    test(
+      'regression: a name from the address book fits the sync schema',
+      () async {
+        logIn();
+        discoverable(1, lisaId, 'appleMusic');
+        discoverable(2, benId, 'tidal');
+        discoverable(3, myId.replaceFirst('1', '5'), 'spotify');
+        contacts.entries = [
+          AddressBookEntry('L' * 60, [e164(1)]),
+          AddressBookEntry('+49 151 10000002', [e164(2)]),
+          AddressBookEntry('', [e164(3)]),
+        ];
+        final c = await container();
+        final result = await c.read(discoveryProvider).run();
+        expect(
+          {for (final m in result.matches) m.id: m.name},
+          {
+            lisaId: 'L' * 40,
+            // A number as name, or none, gives way to the profile's name
+            benId: 'Profilname 2',
+            myId.replaceFirst('1', '5'): 'Profilname 3',
+          },
+        );
+      },
+    );
+
+    testWidgets(
+      'regression: saving never replaces another contact of the same name',
+      (tester) async {
+        logIn();
+        final otherId = '55555555-5555-4555-8555-555555555555';
+        discoverable(1, otherId, 'appleMusic');
+        discoverable(2, lisaId, 'tidal');
+        // Ben exists, linked to someone else
+        contacts.entries = [
+          AddressBookEntry('Ben', [e164(1)]),
+          AddressBookEntry('Ben', [e164(2)]),
+        ];
+        await pump(tester, const DiscoverScreen());
+        await tester.tap(find.text('Speichern').first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Speichern'));
+        await tester.pumpAndSettle();
+        expect(localSocial()['friends'], [
+          {'name': 'Ben', 'platform': 'youtubeMusic', 'id': benId},
+          {'name': 'Ben 2', 'platform': 'appleMusic', 'id': otherId},
+          {'name': 'Ben 3', 'platform': 'tidal', 'id': lisaId},
+        ]);
+      },
+    );
 
     testWidgets('permission denied: friendly text and nothing sent', (
       tester,

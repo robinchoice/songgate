@@ -206,3 +206,8 @@ class OprfClient {
 
 String toHex(List<int> bytes) =>
     [for (final byte in bytes) byte.toRadixString(16).padLeft(2, '0')].join();
+
+Uint8List hexBytes(String hex) => Uint8List.fromList([
+  for (var i = 0; i < hex.length; i += 2)
+    int.parse(hex.substring(i, i + 2), radix: 16),
+]);

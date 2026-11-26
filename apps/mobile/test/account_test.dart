@@ -12,7 +12,9 @@ import 'package:musiclink/app.dart';
 import 'package:musiclink/core/api.dart';
 import 'package:musiclink/core/router.dart';
 import 'package:musiclink/features/account/account.dart';
+import 'package:musiclink/features/account/discover.dart';
 import 'package:musiclink/features/account/oprf.dart';
+import 'package:pointycastle/export.dart' hide State;
 import 'package:musiclink/features/account/sync.dart';
 import 'package:musiclink/features/friends/friends_screen.dart';
 import 'package:musiclink/features/friends/social.dart';
@@ -42,8 +44,14 @@ class FakeServer {
   );
   String? pendingPhone;
 
-  /// Keys of the discoverable numbers by profile, what GET /discover/keys lists
-  final discoverable = <String, Map<String, Object?>>{};
+  /// Profiles `{id, name, platform}` of the discoverable numbers
+  final directory = <String, Map<String, Object?>>{};
+
+  /// Entries of people the address book does not have
+  final strangers = <Map<String, String>>[];
+
+  /// The phone the last verify named
+  String? verifiedPhone;
 
   /// Numbers asked for per evaluate call
   final evaluateSizes = <int>[];
@@ -55,6 +63,34 @@ class FakeServer {
   bool corruptEvaluation = false;
   int _evaluated = 0;
 
+  /// A directory box as the API builds it: AES-256-GCM under a key from the
+  /// OPRF output, nonce(12) || ciphertext || tag(16), base64
+  String sealBox(String output, Map<String, Object?> profile) {
+    final nonce = Uint8List.fromList(List.generate(12, (i) => i + 1));
+    final cipher = GCMBlockCipher(AESEngine())
+      ..init(
+        true,
+        AEADParameters(
+          KeyParameter(discoverBoxKey(hexBytes(output))),
+          128,
+          nonce,
+          Uint8List(0),
+        ),
+      );
+    final sealed = cipher.process(
+      Uint8List.fromList(utf8.encode(jsonEncode(profile))),
+    );
+    return base64Encode([...nonce, ...sealed]);
+  }
+
+  Map<String, String> entryOf(String phone, Map<String, Object?> profile) {
+    final output = keyOf(phone);
+    return {
+      'tag': discoverTag(hexBytes(output)),
+      'box': sealBox(output, profile),
+    };
+  }
+
   /// The key the server derives for a number, as in RFC 9497 Evaluate
   String keyOf(String phone) {
     final client = OprfClient();
@@ -64,6 +100,10 @@ class FakeServer {
     );
     return toHex(client.finalize(blinded, _evaluate(blinded.element)));
   }
+
+  // Prefix 5 is no SEC1 point
+  Uint8List _answer(Uint8List point) =>
+      corruptEvaluation ? (point..[0] = 5) : point;
 
   Uint8List _evaluate(List<int> element) =>
       serializeElement((deserializeElement(element) * oprfKey)!);
@@ -140,6 +180,7 @@ class FakeServer {
           if (body()['code'] != '123456') {
             return _json({'error': 'Der Code stimmt nicht.'}, 400);
           }
+          verifiedPhone = body()['phone'] as String;
           user = {...user, 'discoverable': true};
           return _json({'user': user});
         case ('DELETE', '/me/phone'):
@@ -151,27 +192,23 @@ class FakeServer {
           if (user['discoverable'] != true) {
             return _json({'error': 'Zuerst Nummer bestätigen.'}, 403);
           }
-          _evaluated += blinded.length;
-          if (evaluateQuota != null && _evaluated > evaluateQuota!) {
+          if (evaluateQuota != null &&
+              _evaluated + blinded.length > evaluateQuota!) {
             return _json({'error': 'Tageslimit erreicht.'}, 429);
           }
+          _evaluated += blinded.length;
           return _json({
             'evaluated': [
               for (final item in blinded)
-                base64Encode(
-                  _evaluate(base64Decode(item))
-                    ..[32] ^= corruptEvaluation ? 1 : 0,
-                ),
+                base64Encode(_answer(_evaluate(base64Decode(item)))),
             ],
           });
-        case ('GET', '/discover/keys'):
-          return _json({'keys': discoverable.keys.toList()});
-        case ('POST', '/discover/profiles'):
+        case ('GET', '/discover/directory'):
           return _json({
-            'profiles': [
-              for (final key in (body()['keys'] as List).cast<String>())
-                if (discoverable[key] case final profile?)
-                  {'key': key, ...profile},
+            'entries': [
+              for (final entry in directory.entries)
+                entryOf(entry.key, entry.value),
+              ...strangers,
             ],
           });
       }

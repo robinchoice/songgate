@@ -5,16 +5,19 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phone_numbers_parser/phone_numbers_parser.dart';
+import 'package:pointycastle/export.dart';
 
 import '../../core/api.dart';
 import '../converter/conversion.dart';
+import '../friends/social.dart';
 import 'account.dart';
 import 'oprf.dart';
 
-/// Numbers per evaluate request and keys per profiles request, the most the
-/// API takes.
+/// Numbers per evaluate request, the most the API takes.
 const evaluateChunk = 200;
-const profilesChunk = 500;
+
+/// The longest name a contact may have, see the sync schema.
+const maxNameLength = 40;
 
 /// The region that completes numbers without a country code: the device's,
 /// Germany if it names none the number parser knows.
@@ -86,7 +89,51 @@ class DeviceContacts implements ContactsSource {
   }
 }
 
-/// A person from the address book who is on Songgate: their name there, the
+/// The tag a directory entry carries for the OPRF output [output] of a number.
+String discoverTag(List<int> output) => toHex(
+  SHA256Digest()
+      .process(
+        Uint8List.fromList([
+          ...utf8.encode('Songgate discover tag'),
+          ...output,
+        ]),
+      )
+      .sublist(0, 16),
+);
+
+/// The AES-256 key of the box that belongs to [output].
+Uint8List discoverBoxKey(List<int> output) => SHA256Digest().process(
+  Uint8List.fromList([...utf8.encode('Songgate discover box'), ...output]),
+);
+
+/// The profile `{id, name, platform}` in a directory box
+/// (base64 of nonce(12) || ciphertext || tag(16), AES-256-GCM), null when
+/// [output] does not open it or the content is no profile.
+Map<String, Object?>? openDirectoryBox(List<int> output, String box) {
+  try {
+    final bytes = base64Decode(box);
+    if (bytes.length < 12 + 16) return null;
+    final cipher = GCMBlockCipher(AESEngine())
+      ..init(
+        false,
+        AEADParameters(
+          KeyParameter(discoverBoxKey(output)),
+          128,
+          Uint8List.fromList(bytes.sublist(0, 12)),
+          Uint8List(0),
+        ),
+      );
+    final plain = cipher.process(Uint8List.fromList(bytes.sublist(12)));
+    final json = jsonDecode(utf8.decode(plain));
+    return json is Map<String, dynamic> ? json : null;
+  } on InvalidCipherTextException {
+    return null;
+  } on FormatException {
+    return null;
+  }
+}
+
+/// A person from the address book who is on Songgate: their name, the
 /// service and profile from Songgate.
 class Match {
   final String name;
@@ -100,31 +147,61 @@ class DiscoverResult {
   final bool denied;
   final List<Match> matches;
 
-  /// The API's text when the daily quota ended the search early
-  final String? limit;
+  /// The daily quota ended the search: [checked] of [total] numbers are done
+  final bool limited;
+  final int checked;
+  final int total;
   const DiscoverResult({
     this.denied = false,
     this.matches = const [],
-    this.limit,
+    this.limited = false,
+    this.checked = 0,
+    this.total = 0,
   });
+}
+
+/// An address book name that is empty or mostly a number says nothing.
+bool _nameless(String name) {
+  final trimmed = name.trim();
+  if (trimmed.isEmpty) return true;
+  final numeric = trimmed.runes
+      .where((rune) => '0123456789+ ()-./'.contains(String.fromCharCode(rune)))
+      .length;
+  return numeric * 5 >= trimmed.runes.length * 4;
+}
+
+String _shorten(String name, int length) =>
+    name.characters.take(length).toString().trim();
+
+/// [name] if no other contact has it, else with " 2", " 3" … after it.
+String freeName(String name, String id, Iterable<Friend> friends) {
+  var candidate = _shorten(name, maxNameLength);
+  for (var n = 2; friends.any((f) => f.name == candidate && f.id != id); n++) {
+    candidate = '${_shorten(name, maxNameLength - ' $n'.length)} $n';
+  }
+  return candidate;
 }
 
 final discoveryProvider = Provider(Discovery.new);
 
 /// Finds the people of the address book who are discoverable, without a
 /// number leaving the phone: each is blinded (oprf.dart), the server applies
-/// its key to the blinded value, the phone unblinds it into the key the
-/// server holds for a confirmed number and compares with the list of all keys.
+/// its key to the blinded value, the phone unblinds it into an output that
+/// only this number gives. The directory of discoverable people lists tags
+/// and boxes; the phone picks the entries whose tag fits one of its outputs
+/// and opens them with it, so the server never learns who matched. Outputs
+/// stay on the phone, so a later run checks only numbers not yet checked.
 class Discovery {
   final Ref ref;
   Discovery(this.ref);
 
   Api get _api => ref.read(apiProvider);
+  AccountController get _account => ref.read(accountProvider.notifier);
 
   Future<DiscoverResult> run() async {
     final entries = await ref.read(contactsSourceProvider).read();
     if (entries == null) return const DiscoverResult(denied: true);
-    final own = await ref.read(accountProvider.notifier).ownPhone();
+    final own = await _account.ownPhone();
     final ownId = ref.read(accountProvider).value?.id;
     final region = ref.read(defaultRegionProvider);
 
@@ -139,12 +216,19 @@ class Discovery {
       }
     }
 
+    final saved = await _account.readDiscoverCache();
+    final outputs = {
+      for (final number in names.keys)
+        if (saved[number] case final String output) number: output,
+    };
+    final pending = [
+      for (final number in names.keys)
+        if (!outputs.containsKey(number)) number,
+    ];
     final client = OprfClient();
-    final keyNames = <String, String>{};
-    String? limit;
-    final numbers = names.keys.toList();
-    for (var start = 0; start < numbers.length; start += evaluateChunk) {
-      final chunk = numbers.skip(start).take(evaluateChunk).toList();
+    var limited = false;
+    for (var start = 0; start < pending.length; start += evaluateChunk) {
+      final chunk = pending.skip(start).take(evaluateChunk).toList();
       final blinded = <Blinded>[];
       for (final number in chunk) {
         blinded.add(client.blind(Uint8List.fromList(utf8.encode(number))));
@@ -162,7 +246,7 @@ class Discovery {
         );
       } on ApiException catch (error) {
         if (error.status != 429) rethrow;
-        limit = error.message;
+        limited = true;
         break;
       }
       final evaluated = switch (answer) {
@@ -176,52 +260,60 @@ class Discovery {
         final Object? item = evaluated[i];
         try {
           if (item is! String) throw const FormatException('Not a string');
-          final key = toHex(client.finalize(blinded[i], base64Decode(item)));
-          keyNames[key] = names[chunk[i]]!;
+          outputs[chunk[i]] = toHex(
+            client.finalize(blinded[i], base64Decode(item)),
+          );
         } on FormatException {
           throw ApiException(_api.locale.messages.invalidAnswer);
         }
         await _yield(i + 1);
       }
+      await _account.writeDiscoverCache(outputs);
     }
+    await _account.writeDiscoverCache(outputs);
 
-    final keys = await _keys();
-    final found = keyNames.keys.where(keys.contains).toList();
     final matches = <Match>[];
-    for (var start = 0; start < found.length; start += profilesChunk) {
-      final answer = await _api.request(
-        'POST',
-        '/discover/profiles',
-        body: {'keys': found.skip(start).take(profilesChunk).toList()},
-        auth: true,
-      );
-      if (answer case {'profiles': final List<Object?> profiles}) {
-        for (final profile in profiles) {
-          if (profile
-              case {
-                'key': final String key,
-                'id': final String id,
-                'platform': final String platform,
-              }
-              when keyNames.containsKey(key) &&
-                  id != ownId &&
-                  platforms.containsKey(platform) &&
-                  !matches.any((match) => match.id == id)) {
-            matches.add(Match(keyNames[key]!, id, platform));
-          }
+    if (outputs.isNotEmpty) {
+      final boxes = await _directory();
+      for (final MapEntry(key: number, value: hex) in outputs.entries) {
+        final output = hexBytes(hex);
+        final box = boxes[discoverTag(output)];
+        if (box == null) continue;
+        final profile = openDirectoryBox(output, box);
+        if (profile
+            case {'id': final String id, 'platform': final String platform}
+            when id != ownId &&
+                platforms.containsKey(platform) &&
+                !matches.any((match) => match.id == id)) {
+          final book = names[number]!;
+          final named = profile['name'];
+          final name = _nameless(book) && named is String && named.isNotEmpty
+              ? named
+              : book;
+          matches.add(Match(_shorten(name, maxNameLength), id, platform));
         }
       }
     }
     matches.sort(
       (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
     );
-    return DiscoverResult(matches: matches, limit: limit);
+    return DiscoverResult(
+      matches: matches,
+      limited: limited,
+      checked: outputs.length,
+      total: names.length,
+    );
   }
 
-  Future<Set<String>> _keys() async {
-    final answer = await _api.request('GET', '/discover/keys', auth: true);
-    if (answer case {'keys': final List<Object?> keys}) {
-      return keys.whereType<String>().toSet();
+  /// Box by tag of everyone discoverable except this account
+  Future<Map<String, String>> _directory() async {
+    final answer = await _api.request('GET', '/discover/directory', auth: true);
+    if (answer case {'entries': final List<Object?> entries}) {
+      return {
+        for (final entry in entries)
+          if (entry case {'tag': final String tag, 'box': final String box})
+            tag: box,
+      };
     }
     throw ApiException(_api.locale.messages.invalidAnswer);
   }

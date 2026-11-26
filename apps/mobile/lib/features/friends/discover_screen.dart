@@ -110,7 +110,11 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                 else if (result.denied)
                   Text(t.contactsDenied)
                 else ...[
-                  if (result.matches.isEmpty) ...[
+                  if (result.limited) ...[
+                    Text(t.checkedPartly(result.checked, result.total)),
+                    const SizedBox(height: 16),
+                  ],
+                  if (result.matches.isEmpty && !result.limited) ...[
                     Text(t.noMatches),
                     const SizedBox(height: 16),
                     Builder(
@@ -120,7 +124,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                         label: Text(t.shareMyInvite),
                       ),
                     ),
-                  ] else ...[
+                  ] else if (result.matches.isNotEmpty) ...[
                     Text(t.foundCount(result.matches.length)),
                     const SizedBox(height: 8),
                     for (final match in result.matches)
@@ -132,13 +136,6 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                       ),
                     const SizedBox(height: 8),
                     Text(t.foundNote, style: theme.textTheme.bodySmall),
-                  ],
-                  if (result.limit != null) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      result.limit!,
-                      style: const TextStyle(color: errorGlow),
-                    ),
                   ],
                 ],
               ],
@@ -172,8 +169,19 @@ class _MatchTile extends ConsumerWidget {
       trailing: saved
           ? null
           : TextButton(
-              onPressed: () =>
-                  ref.read(socialProvider.notifier).addFriend(friend),
+              onPressed: () => ref
+                  .read(socialProvider.notifier)
+                  .addFriend(
+                    Friend(
+                      freeName(
+                        match.name,
+                        match.id,
+                        ref.read(socialProvider).friends,
+                      ),
+                      match.platform,
+                      id: match.id,
+                    ),
+                  ),
               child: Text(t.save),
             ),
     );

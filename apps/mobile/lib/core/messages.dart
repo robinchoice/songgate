@@ -189,6 +189,7 @@ abstract class Messages {
   String get foundNote;
   String get alreadySaved;
   String get noMatches;
+  String checkedPartly(int checked, int total);
   String get contactsDenied;
 
   // Feedback
@@ -601,9 +602,12 @@ class De extends Messages {
       : '$count Personen aus deinem Adressbuch sind bei Songgate.';
   @override
   String get foundNote =>
-      'Angezeigt wird der Name aus deinem Adressbuch, dazu der Dienst aus dem Profil.';
+      'Die Namen kommen aus deinem Adressbuch. Fehlt ein Name, siehst du den Profilnamen. Der Dienst kommt aus dem Profil.';
   @override
   String get alreadySaved => 'schon gespeichert';
+  @override
+  String checkedPartly(int checked, int total) =>
+      'Heute ließen sich $checked von $total Nummern prüfen. Morgen geht es weiter.';
   @override
   String get noMatches =>
       'Noch niemand aus deinem Adressbuch ist auffindbar. Schick deine Einladung!';
@@ -1033,9 +1037,12 @@ class En extends Messages {
       : '$count people from your address book are on Songgate.';
   @override
   String get foundNote =>
-      'You see the name from your address book, plus the service from the profile.';
+      'Names come from your address book. If a name is missing, you see the profile name. The service comes from the profile.';
   @override
   String get alreadySaved => 'already saved';
+  @override
+  String checkedPartly(int checked, int total) =>
+      'Today $checked of $total numbers could be checked. It continues tomorrow.';
   @override
   String get noMatches =>
       'Nobody from your address book is findable yet. Send your invite!';

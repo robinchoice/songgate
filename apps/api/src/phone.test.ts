@@ -3,6 +3,7 @@ import { createDb, migrateDb, phoneCodes, users } from '@app/db';
 import { Evaluation, EvaluationRequest, Oprf, OPRFClient, OPRFServer } from '@cloudflare/voprf-ts';
 import { solveChallenge } from 'altcha-lib';
 import { deriveKey } from 'altcha-lib/algorithms/pbkdf2';
+import { createDecipheriv, createHash } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { CryptoNoble } from '@cloudflare/voprf-ts/crypto-noble';
@@ -11,6 +12,8 @@ import { challengeSchema } from './lib/altcha';
 
 const OPRF_KEY = 'a'.repeat(63) + '1';
 process.env.OPRF_KEY = OPRF_KEY;
+// Codes go to the log, never to real numbers
+delete process.env.SEVEN_API_KEY;
 
 const db = createDb(process.env.DATABASE_URL);
 const app = createApp({ db, resolve: async () => { throw new Error('unused'); } });
@@ -49,7 +52,7 @@ const randomPhone = () => `+4915${String(Math.floor(Math.random() * 1e9)).padSta
 
 async function confirm(token: string, phone = randomPhone()) {
   expect((await call('/me/phone', { method: 'POST', token, body: { phone } })).status).toBe(200);
-  const response = await call('/me/phone/verify', { method: 'POST', token, body: { code: lastCode(`[sms] To ${phone}:`) } });
+  const response = await call('/me/phone/verify', { method: 'POST', token, body: { phone, code: lastCode(`[sms] To ${phone}:`) } });
   expect(response.status).toBe(200);
   return { phone, user: await json(response) };
 }
@@ -88,13 +91,27 @@ test('a wrong SMS code fails and five wrong guesses use it up', async () => {
   await call('/me/phone', { method: 'POST', token, body: { phone } });
   const code = lastCode(`[sms] To ${phone}:`)!;
   const wrong = code === '000000' ? '000001' : '000000';
-  for (let i = 0; i < 5; i++) expect((await call('/me/phone/verify', { method: 'POST', token, body: { code: wrong } })).status).toBe(400);
-  expect((await call('/me/phone/verify', { method: 'POST', token, body: { code } })).status).toBe(400);
+  for (let i = 0; i < 5; i++) expect((await call('/me/phone/verify', { method: 'POST', token, body: { phone, code: wrong } })).status).toBe(400);
+  expect((await call('/me/phone/verify', { method: 'POST', token, body: { phone, code } })).status).toBe(400);
 });
 
 test('numbers must be in E.164', async () => {
   const { token } = await logIn();
   expect((await call('/me/phone', { method: 'POST', token, body: { phone: '0151 2345678' } })).status).toBe(400);
+});
+
+test('regression: production without a seven.io key does not log a phone number or code', async () => {
+  const { token } = await logIn();
+  const phone = randomPhone();
+  const mode = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'production';
+  try {
+    expect((await call('/me/phone', { method: 'POST', token, body: { phone } })).status).toBe(503);
+    expect(lastCode(`[sms] To ${phone}:`)).toBeUndefined();
+  } finally {
+    if (mode === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = mode;
+  }
 });
 
 test('a number gets at most three SMS an hour', async () => {
@@ -107,31 +124,74 @@ test('a number gets at most three SMS an hour', async () => {
   expect((await call('/me/phone', { method: 'POST', token, body: { phone } })).status).toBe(429);
 });
 
+const derive = (label: string, output: Buffer) => createHash('sha256').update(label).update(output).digest();
+const entrySchema = z.object({ entries: z.array(z.object({ tag: z.string(), box: z.string() })) });
+
+// What the app does with the directory: find the tag of a key, open its box
+function open(directory: z.infer<typeof entrySchema>, key: string) {
+  const output = Buffer.from(key, 'hex');
+  const entry = directory.entries.find(candidate => candidate.tag === derive('Songgate discover tag', output).subarray(0, 16).toString('hex'));
+  if (!entry) return null;
+  const sealed = Buffer.from(entry.box, 'base64');
+  const decipher = createDecipheriv('aes-256-gcm', derive('Songgate discover box', output), sealed.subarray(0, 12));
+  decipher.setAuthTag(sealed.subarray(-16));
+  return JSON.parse(Buffer.concat([decipher.update(sealed.subarray(12, -16)), decipher.final()]).toString());
+}
+
 test('discovery finds confirmed contacts by their numbers and nobody else', async () => {
   const lea = await logIn('Lea', 'appleMusic');
-  const ben = await logIn('Ben', 'deezer');
   const me = await logIn('Robin', 'spotify');
   const { phone: leaPhone } = await confirm(lea.token);
-  await confirm(me.token);
-  const benPhone = randomPhone();
+  const { phone: myPhone } = await confirm(me.token);
+  const strangerPhone = randomPhone();
 
-  const keys = await keysFor(me.token, [leaPhone, benPhone]);
+  const keys = await keysFor(me.token, [leaPhone, strangerPhone, myPhone]);
   if (typeof keys === 'number') throw new Error(`evaluate failed with ${keys}`);
-  const all = z.object({ keys: z.array(z.string()) }).parse(await (await call('/discover/keys', { token: me.token })).json()).keys;
-  expect(all).toContain(keys[0]!);
-  expect(all).not.toContain(keys[1]!);
-
-  const profiles = await json(await call('/discover/profiles', { method: 'POST', token: me.token, body: { keys } }));
-  expect(profiles).toEqual({ profiles: [{ key: keys[0], id: lea.id, name: 'Lea', platform: 'appleMusic' }] });
-  expect(JSON.stringify(profiles)).not.toContain('@');
-  expect(ben.id).not.toBe(lea.id);
+  const directory = entrySchema.parse(await (await call('/discover/directory', { token: me.token })).json());
+  expect(open(directory, keys[0]!)).toEqual({ id: lea.id, name: 'Lea', platform: 'appleMusic' });
+  expect(open(directory, keys[1]!)).toBeNull();
+  // The own entry is left out
+  expect(open(directory, keys[2]!)).toBeNull();
+  // The directory itself names nobody
+  expect(JSON.stringify(directory)).not.toContain(lea.id);
+  expect(JSON.stringify(directory)).not.toContain('Lea');
 });
+
+test('regression: a code only confirms the number it was sent to', async () => {
+  const { token } = await logIn();
+  const first = randomPhone();
+  const second = randomPhone();
+  await call('/me/phone', { method: 'POST', token, body: { phone: first } });
+  await call('/me/phone', { method: 'POST', token, body: { phone: second } });
+  const firstCode = lastCode(`[sms] To ${first}:`);
+  expect((await call('/me/phone/verify', { method: 'POST', token, body: { phone: second, code: firstCode } })).status).toBe(400);
+});
+
+test('regression: switching discovery off leaves no code that switches it back on', async () => {
+  const { token, id } = await logIn();
+  const phone = randomPhone();
+  await call('/me/phone', { method: 'POST', token, body: { phone } });
+  const code = lastCode(`[sms] To ${phone}:`);
+  await call('/me/phone', { method: 'DELETE', token, body: {} });
+  expect(await db.select().from(phoneCodes).where(eq(phoneCodes.userId, id))).toEqual([]);
+  expect((await call('/me/phone/verify', { method: 'POST', token, body: { phone, code } })).status).toBe(400);
+});
+
+test('regression: moving a number to another account keeps its daily quota', async () => {
+  const first = await logIn();
+  const { phone } = await confirm(first.token);
+  const phones = Array.from({ length: 200 }, randomPhone);
+  for (let i = 0; i < 5; i++) expect(Array.isArray(await keysFor(first.token, phones))).toBe(true);
+  const second = await logIn();
+  await confirm(second.token, phone);
+  expect(await keysFor(second.token, [randomPhone()])).toBe(429);
+}, 60_000);
 
 test('discovery needs an own confirmed number', async () => {
   const { token } = await logIn();
   expect(await keysFor(token, [randomPhone()])).toBe(403);
-  expect((await call('/discover/keys', { token })).status).toBe(403);
-  expect((await call('/discover/keys')).status).toBe(401);
+  expect((await call('/discover/directory', { token })).status).toBe(403);
+  expect((await call('/discover/directory')).status).toBe(401);
 });
 
 test('an account checks at most 1000 numbers a day', async () => {
@@ -166,8 +226,26 @@ test('the newest confirmation of a number wins and removing it ends discoverabil
   expect(row!.phoneKey).toBeNull();
 });
 
-test('the blinded request format matches the library', async () => {
-  const client = new OPRFClient(suite);
-  const [, request] = await client.blind([new TextEncoder().encode('+491511')]);
-  expect(EvaluationRequest.deserialize(suite, request.serialize(), CryptoNoble).blinded[0]!.serialize(true).length).toBe(33);
+test('regression: concurrent confirmations of the same number leave one discoverable account', async () => {
+  const first = await logIn();
+  const second = await logIn();
+  const phone = randomPhone();
+  async function requestCode(token: string) {
+    expect((await call('/me/phone', { method: 'POST', token, body: { phone } })).status).toBe(200);
+    return lastCode(`[sms] To ${phone}:`);
+  }
+  const firstCode = await requestCode(first.token);
+  const secondCode = await requestCode(second.token);
+  const responses = await Promise.all([
+    call('/me/phone/verify', { method: 'POST', token: first.token, body: { phone, code: firstCode } }),
+    call('/me/phone/verify', { method: 'POST', token: second.token, body: { phone, code: secondCode } }),
+  ]);
+  expect(responses.map(response => response.status)).toEqual([200, 200]);
+  const profiles = await Promise.all([
+    call('/me', { token: first.token }),
+    call('/me', { token: second.token }),
+  ]);
+  const profile = z.object({ user: z.object({ discoverable: z.boolean() }) });
+  const states = await Promise.all(profiles.map(async response => profile.parse(await json(response)).user.discoverable));
+  expect(states.filter(Boolean)).toHaveLength(1);
 });
