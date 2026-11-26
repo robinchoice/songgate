@@ -9,13 +9,13 @@ import 'social.dart';
 
 /// Initial on a steady colour per name with the friend's service as a badge,
 /// the same colour as on the web.
-class FriendAvatar extends StatelessWidget {
+class FriendAvatar extends ConsumerWidget {
   final Friend friend;
   final double size;
   const FriendAvatar(this.friend, {super.key, this.size = 50});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final hue = friend.name.codeUnits
         .fold(7, (sum, unit) => (sum * 31 + unit) % 360)
         .toDouble();
@@ -42,6 +42,26 @@ class FriendAvatar extends StatelessWidget {
               ),
             ),
           ),
+          if (friend.id != null)
+            Positioned(
+              left: 0,
+              bottom: 0,
+              child: Semantics(
+                label: ref.watch(messagesProvider).linked,
+                child: Container(
+                  padding: const EdgeInsets.all(1),
+                  decoration: const BoxDecoration(
+                    color: background,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.sync_alt,
+                    size: badge,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ),
+            ),
           Positioned(
             right: 0,
             bottom: 0,

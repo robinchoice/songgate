@@ -3,7 +3,7 @@
 </script>
 
 <LegalPage title="Datenschutz" lang="de">
-  <p>Songgate funktioniert ohne Anmeldung, ohne Werbung und ohne Tracking. Diese Erklärung gilt für die Website und die Apps für iOS und Android.</p>
+  <p>Songgate funktioniert ohne Anmeldung, ohne Werbung und ohne Tracking. Ein Konto ist freiwillig und nur in den Apps möglich. Diese Erklärung gilt für die Website und die Apps für iOS und Android.</p>
 
   <h2>Verantwortlicher</h2>
   <p>Robin Wahl, Pleasance, Bugginger Straße 37, 79114 Freiburg<br />E-Mail: <a href="mailto:hello@pleasance.org">hello@pleasance.org</a></p>
@@ -25,7 +25,12 @@
   <p>Die Cover der Ergebnisse lädt dein Gerät direkt von den Servern der Plattformen (Apple, Google, Spotify, Deezer, TIDAL). Dabei sehen diese deine IP-Adresse. Öffnest du einen Song in einer Musik-App oder auf einer Plattform, gilt deren Datenschutzerklärung.</p>
 
   <h2>Einstellungen auf deinem Gerät</h2>
-  <p>Deine bevorzugte Zielplattform, den Dienst, den du auf einer geteilten Song-Seite zuletzt geöffnet hast, deine Kontakte und Gruppen (Name und Musikdienst) und, falls angegeben, deine E-Mail-Adresse für Feedback merkt sich Songgate lokal auf deinem Gerät. Kontakte erreichen unseren Server nicht. Ein Einladungslink enthält nur den Namen und den Dienst, die du selbst angibst. Ein Cookie setzen wir nur, wenn du in der Fußzeile die Sprache umschaltest: Es merkt sich deine Wahl ein Jahr lang.</p>
+  <p>Deine bevorzugte Zielplattform, den Dienst, den du auf einer geteilten Song-Seite zuletzt geöffnet hast, deine Kontakte und Gruppen (Name und Musikdienst) und, falls angegeben, deine E-Mail-Adresse für Feedback merkt sich Songgate lokal auf deinem Gerät. Ohne Konto erreichen Kontakte unseren Server nicht. Ein Einladungslink enthält nur den Namen und den Dienst, die du selbst angibst, mit Konto zusätzlich die zufällige Kennung deines Profils. Ein Cookie setzen wir nur, wenn du in der Fußzeile die Sprache umschaltest: Es merkt sich deine Wahl ein Jahr lang.</p>
+
+  <h2>Konto (freiwillig, nur in der App)</h2>
+  <p>Mit einem Konto bleiben deine Kontakte und Gruppen auf allen deinen Geräten erhalten. Angemeldet wird mit einem Code, den wir per E-Mail über die Proton AG (Schweiz) schicken. Dafür speichern wir deine E-Mail-Adresse, den Namen und den Musikdienst deines Profils, deine Kontakte und Gruppen (Name, Musikdienst und, wenn verbunden, die Profil-Kennung) und für jede Anmeldung einen Sitzungsschlüssel, von dem wir nur einen Hashwert behalten. Den Code speichern wir ebenfalls nur als Hashwert, er verfällt nach 15 Minuten. Gegen Missbrauch rechnet dein Gerät vor jeder Code-Anfrage eine kleine Aufgabe (ALTCHA, ohne Cookies und ohne Drittanbieter), und wir zählen Anfragen pro IP-Adresse und E-Mail-Adresse; diese Zähler werden nach spätestens einer Stunde gelöscht.</p>
+  <p>Wer dich über deine Einladung gespeichert hat, kann Name und Musikdienst deines Profils über dessen zufällige Kennung abrufen, damit deine Songs auch nach einem Dienstwechsel richtig ankommen. Deine E-Mail-Adresse sieht niemand. Eine Suche nach Profilen gibt es nicht.</p>
+  <p>Du kannst das Konto jederzeit in der App unter „Kontakte“ → dein Profil → „Konto löschen“ löschen. Dann löschen wir Konto, Profil, Kontakte und Sitzungen sofort; die Kontakte auf deinem Gerät bleiben. Eine Sitzung endet mit dem Abmelden oder nach einem Jahr ohne Nutzung. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.</p>
 
   <h2>Feedback</h2>
   <p>Über „Feedback geben“ kannst du uns Fehler und Ideen schicken. Dabei übertragen wir deine Nachricht, auf Wunsch einen Screenshot und deine E-Mail-Adresse sowie technische Angaben (Seite, Plattform, Gerät, Fenstergröße, letzte Fehlermeldungen). Die Meldung wird auf unserem Server gespeichert und per E-Mail über die Proton AG (Schweiz) an uns weitergeleitet. Für die Schweiz besteht ein Angemessenheitsbeschluss der EU-Kommission. Gegen Missbrauch zählen wir Meldungen pro IP-Adresse, dieser Zähler wird nach einer Stunde gelöscht.</p>

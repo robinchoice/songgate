@@ -8,6 +8,7 @@ import 'core/brand.dart';
 import 'core/locale.dart';
 import 'core/messages.dart';
 import 'core/router.dart';
+import 'features/account/sync.dart';
 import 'features/feedback/feedback_button.dart';
 import 'features/update/update_screen.dart';
 
@@ -24,7 +25,7 @@ class App extends ConsumerWidget {
       builder: (context, child) =>
           ref.watch(updateRequiredProvider).value == true
           ? const UpdateScreen()
-          : FeedbackButton(child: child!),
+          : SyncOnResume(child: FeedbackButton(child: child!)),
       // Material's own texts such as tooltips follow the chosen language too
       locale: Locale(locale.name),
       supportedLocales: [for (final l in AppLocale.values) Locale(l.name)],

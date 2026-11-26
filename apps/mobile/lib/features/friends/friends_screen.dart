@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +9,9 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/brand.dart';
 import '../../core/locale.dart';
+import '../account/account.dart';
+import '../account/account_screens.dart';
+import '../account/sync.dart';
 import '../converter/conversion.dart';
 import 'friends_bar.dart';
 import 'social.dart';
@@ -103,7 +108,14 @@ Future<Friend?> showAddFriendDialog(
             onPressed: () {
               final name = controller.text.trim();
               if (name.isNotEmpty) {
-                Navigator.pop(context, Friend(name, platform));
+                Navigator.pop(
+                  context,
+                  Friend(
+                    name,
+                    platform,
+                    id: name == initial?.name ? initial?.id : null,
+                  ),
+                );
               }
             },
             child: Text(t.save),
@@ -123,16 +135,20 @@ Future<Friend?> showAddFriendDialog(
 
 Future<void> shareInvite(BuildContext context, WidgetRef ref) async {
   final t = ref.read(messagesProvider);
+  final profile = ref.read(accountProvider).value?.asFriend;
   final current = ref.read(socialProvider).me;
-  final me = await showAddFriendDialog(
-    context,
-    ref,
-    title: t.myInvite,
-    initial: current ?? const Friend('', 'spotify'),
-    save: false,
-  );
+  // With an account, name and service come from the profile
+  final me =
+      profile ??
+      await showAddFriendDialog(
+        context,
+        ref,
+        title: t.myInvite,
+        initial: current ?? const Friend('', 'spotify'),
+        save: false,
+      );
   if (me == null) return;
-  await ref.read(socialProvider.notifier).setMe(me);
+  if (profile == null) await ref.read(socialProvider.notifier).setMe(me);
   if (!context.mounted) return;
   final box = context.findRenderObject()! as RenderBox;
   final origin = box.localToGlobal(Offset.zero) & box.size;
@@ -148,8 +164,10 @@ Future<void> shareInvite(BuildContext context, WidgetRef ref) async {
 /// Face to face the invite is scanned instead of sent.
 Future<void> showInviteQr(BuildContext context, WidgetRef ref) async {
   final t = ref.read(messagesProvider);
+  final profile = ref.read(accountProvider).value?.asFriend;
   final current = ref.read(socialProvider).me;
   final me =
+      profile ??
       current ??
       await showAddFriendDialog(
         context,
@@ -159,7 +177,9 @@ Future<void> showInviteQr(BuildContext context, WidgetRef ref) async {
         save: false,
       );
   if (me == null || !context.mounted) return;
-  if (current == null) await ref.read(socialProvider.notifier).setMe(me);
+  if (profile == null && current == null) {
+    await ref.read(socialProvider.notifier).setMe(me);
+  }
   if (!context.mounted) return;
   await showDialog<void>(
     context: context,
@@ -192,12 +212,91 @@ Future<void> showInviteQr(BuildContext context, WidgetRef ref) async {
   );
 }
 
-class FriendsScreen extends ConsumerWidget {
-  const FriendsScreen({super.key});
+/// The card that offers the account, shown while logged out.
+class _AccountCard extends ConsumerWidget {
+  const _AccountCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final t = ref.watch(messagesProvider);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              t.accountCardTitle,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            Text(t.accountCardText),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+              ),
+              child: Text(t.logInWithMail),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Your own line while logged in, it opens the account.
+class _AccountTile extends ConsumerWidget {
+  final Profile profile;
+  const _AccountTile(this.profile);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = ref.watch(messagesProvider);
+    final me = profile.asFriend;
+    return ListTile(
+      key: const ValueKey('account-tile'),
+      contentPadding: EdgeInsets.zero,
+      leading: me == null
+          ? const CircleAvatar(child: Icon(Icons.person_outline))
+          : FriendAvatar(Friend(me.name, me.platform), size: 40),
+      title: Text(me?.name ?? profile.email),
+      subtitle: Text(
+        me == null
+            ? t.profileSetUp
+            : t.accountSubtitle(platforms[me.platform]!, profile.email),
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => me == null
+              ? const ProfileScreen(setup: true)
+              : const AccountScreen(),
+        ),
+      ),
+    );
+  }
+}
+
+class FriendsScreen extends ConsumerStatefulWidget {
+  const FriendsScreen({super.key});
+
+  @override
+  ConsumerState<FriendsScreen> createState() => _FriendsScreenState();
+}
+
+class _FriendsScreenState extends ConsumerState<FriendsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    unawaited(ref.read(syncProvider).refreshProfiles());
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final social = ref.watch(socialProvider);
+    final profile = ref.watch(accountProvider).value;
     final notifier = ref.read(socialProvider.notifier);
     final t = ref.watch(messagesProvider);
     final theme = Theme.of(context);
@@ -210,18 +309,25 @@ class FriendsScreen extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                Text(t.friendsIntro),
+                if (profile == null)
+                  const _AccountCard()
+                else
+                  _AccountTile(profile),
+                Text(profile == null ? t.friendsIntro : t.accountIntro),
                 const SizedBox(height: 16),
                 Builder(
                   builder: (context) => FilledButton.icon(
                     onPressed: () => shareInvite(context, ref),
                     icon: const Icon(Icons.ios_share),
                     label: Text(
-                      social.me == null
+                      ownIdentity(social, profile) == null
                           ? t.shareMyInvite
                           : t.shareInviteAs(
-                              social.me!.name,
-                              platforms[social.me!.platform]!,
+                              ownIdentity(social, profile)!.name,
+                              platforms[ownIdentity(
+                                social,
+                                profile,
+                              )!.platform]!,
                             ),
                     ),
                   ),
@@ -290,11 +396,13 @@ class FriendsScreen extends ConsumerWidget {
   }
 }
 
-/// Opened by musiclink://app/friend?name=…&service=… from an invite page.
+/// Opened by musiclink://app/friend?name=…&service=…&u=… from an invite page.
+/// A valid `u` links the contact to the sender's account.
 class AddFriendScreen extends ConsumerWidget {
   final String? name;
   final String? service;
-  const AddFriendScreen({super.key, this.name, this.service});
+  final String? userId;
+  const AddFriendScreen({super.key, this.name, this.service, this.userId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -318,7 +426,10 @@ class AddFriendScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Center(
-                          child: FriendAvatar(Friend(name, platform), size: 76),
+                          child: FriendAvatar(
+                            Friend(name, platform, id: profileId(userId)),
+                            size: 76,
+                          ),
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -336,7 +447,9 @@ class AddFriendScreen extends ConsumerWidget {
                           onPressed: () async {
                             await ref
                                 .read(socialProvider.notifier)
-                                .addFriend(Friend(name, platform));
+                                .addFriend(
+                                  Friend(name, platform, id: profileId(userId)),
+                                );
                             if (context.mounted) context.go('/');
                           },
                           child: Text(t.saveName(name)),

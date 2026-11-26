@@ -18,6 +18,8 @@ const envSchema = z.object({
   TIDAL_CLIENT_SECRET: z.string().exactOptional(),
   SPOTIFY_CLIENT_ID: z.string().exactOptional(),
   SPOTIFY_CLIENT_SECRET: z.string().exactOptional(),
+  SIGNUP_ALLOWLIST: z.string().exactOptional(),
+  SIGNUP_OPEN: z.enum(['true', 'false', '']).exactOptional(),
 });
 
 declare module 'bun' {

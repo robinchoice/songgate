@@ -3,7 +3,7 @@
 </script>
 
 <LegalPage title="Privacy policy" lang="en">
-  <p>Songgate works without sign-up, without ads and without tracking. This policy applies to the website and the apps for iOS and Android.</p>
+  <p>Songgate works without sign-up, without ads and without tracking. An account is optional and only available in the apps. This policy applies to the website and the apps for iOS and Android.</p>
 
   <h2>Controller</h2>
   <p>Robin Wahl, Pleasance, Bugginger Straße 37, 79114 Freiburg, Germany<br />Email: <a href="mailto:hello@pleasance.org">hello@pleasance.org</a></p>
@@ -25,7 +25,12 @@
   <p>Your device loads the cover images of the results directly from the platforms' servers (Apple, Google, Spotify, Deezer, TIDAL), which see your IP address. When you open a song in a music app or on a platform, its privacy policy applies.</p>
 
   <h2>Settings on your device</h2>
-  <p>Songgate stores your preferred target platform, the service you last opened on a shared song page, your contacts and groups (name and music service) and, if given, your email address for feedback locally on your device. Contacts never reach our server. An invite link only contains the name and service you enter yourself. We only set a cookie when you switch the language in the footer: it keeps your choice for a year.</p>
+  <p>Songgate stores your preferred target platform, the service you last opened on a shared song page, your contacts and groups (name and music service) and, if given, your email address for feedback locally on your device. Without an account, contacts never reach our server. An invite link only contains the name and service you enter yourself, with an account also the random ID of your profile. We only set a cookie when you switch the language in the footer: it keeps your choice for a year.</p>
+
+  <h2>Account (optional, app only)</h2>
+  <p>With an account your contacts and groups stay with you on all your devices. You log in with a code we send by email through Proton AG (Switzerland). For this we store your email address, the name and music service of your profile, your contacts and groups (name, music service and, when linked, the profile ID) and a session key for each login, of which we only keep a hash. The code is also stored only as a hash and expires after 15 minutes. Against abuse, your device solves a small task before each code request (ALTCHA, without cookies and without third parties), and we count requests per IP address and email address; these counters are deleted after one hour at the latest.</p>
+  <p>Anyone who saved you through your invite can fetch the name and music service of your profile by its random ID, so your songs still arrive in the right place after you switch services. Nobody sees your email address. There is no search for profiles.</p>
+  <p>You can delete the account at any time in the app under “Contacts” → your profile → “Delete account”. We then delete account, profile, contacts and sessions at once; the contacts on your device stay. A session ends when you log out or after a year without use. The legal basis is Art. 6(1)(b) GDPR.</p>
 
   <h2>Feedback</h2>
   <p>With “Give feedback” you can send us bugs and ideas. We transmit your message, a screenshot if you like, your email address and technical details (page, platform, device, window size, latest error messages). The report is stored on our server and forwarded to us by email via Proton AG (Switzerland). The European Commission has issued an adequacy decision for Switzerland. Against abuse we count reports per IP address; this counter is deleted after one hour.</p>

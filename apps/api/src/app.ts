@@ -7,12 +7,13 @@ import { t } from './lib/i18n';
 import { resolve, resolveAll } from './lib/music';
 import { ResolutionError } from './lib/providers';
 import { captureException } from './monitoring';
+import { accountRoutes } from './routes/accounts';
 import { agentRoutes } from './routes/agents';
 import { feedbackRoutes } from './routes/feedback';
 
 const songInput = conversionInput.omit({ target: true });
 
-// Without a database there is no feedback, the converter needs none. Tests pass their own lookups.
+// Without a database there is no feedback and no accounts, the converter needs neither. Tests pass their own lookups.
 export function createApp({ db, resolve: resolver = resolve, resolveAll: resolveSong = resolveAll }: { db?: Database; resolve?: typeof resolve; resolveAll?: typeof resolveAll } = {}) {
   let windowStart = Date.now();
   let requests = 0;
@@ -81,5 +82,7 @@ export function createApp({ db, resolve: resolver = resolve, resolveAll: resolve
     })
     .use('/api/v1/feedback', bodyLimit({ maxSize: 8 * 1024 * 1024, onError: c => c.json({ error: t(c).screenshotTooLarge }, 413) }))
     .route('/api/v1/feedback', db ? feedbackRoutes(db) : new Hono())
+    .use('/api/v1/*', bodyLimit({ maxSize: 256 * 1024, onError: c => c.json({ error: t(c).textTooLong }, 413) }))
+    .route('/api/v1', db ? accountRoutes(db) : new Hono())
     .notFound(c => c.json({ error: t(c).notFound }, 404));
 }

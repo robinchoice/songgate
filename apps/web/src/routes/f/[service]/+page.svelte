@@ -1,10 +1,13 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import Connect from '#lib/components/Connect.svelte';
   import PleasanceFooter from '#lib/components/PleasanceFooter.svelte';
   import { t } from '#lib/i18n.ts';
 
   let { data } = $props();
   const friend = $derived(data.friend);
+  // Invites from someone with an account carry their profile id, the app keeps their service up to date with it
+  const id = $derived(page.url.searchParams.get('u')?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)?.[0]);
 </script>
 
 <svelte:head>
@@ -15,7 +18,7 @@
   <header><a href="/" class="brand"><img class="brand-icon" src="/favicon.svg" alt="" width="34" height="34" /> Songgate</a></header>
   <main>
     {#if friend}
-      <section class="card"><Connect name={friend.name} platform={friend.platform} /></section>
+      <section class="card"><Connect name={friend.name} platform={friend.platform} {id} /></section>
     {:else}
       <section class="card"><h1>{t().inviteIncomplete}</h1><p>{t().askNewInvite}</p></section>
     {/if}

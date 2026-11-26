@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config.dart';
 import '../../core/messages.dart';
+import '../account/sync.dart';
 import '../converter/conversion.dart';
 
 /// Invite links name the service with a short slug, see packages/shared.
@@ -22,11 +23,26 @@ String? platformForSlug(String? slug) => inviteSlugs.entries
     .map((entry) => entry.key)
     .firstOrNull;
 
+final _uuid = RegExp(
+  r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+);
+
+/// The profile ID of an invite or a saved friend, null unless it is a UUID.
+String? profileId(Object? value) =>
+    value is String && _uuid.hasMatch(value) ? value : null;
+
 class Friend {
   final String name;
   final String platform;
-  const Friend(this.name, this.platform);
-  Map<String, String> toJson() => {'name': name, 'platform': platform};
+
+  /// Profile of the other person's account: the service follows what they set there.
+  final String? id;
+  const Friend(this.name, this.platform, {this.id});
+  Map<String, String> toJson() => {
+    'name': name,
+    'platform': platform,
+    'id': ?id,
+  };
   static Friend? fromJson(Object? json) {
     if (json is! Map) return null;
     final name = json['name'];
@@ -34,7 +50,7 @@ class Friend {
     if (name is! String || name.isEmpty || !platforms.containsKey(platform)) {
       return null;
     }
-    return Friend(name, platform as String);
+    return Friend(name, platform as String, id: profileId(json['id']));
   }
 }
 
@@ -78,11 +94,13 @@ class Social {
         platform,
   ];
 
-  Map<String, Object?> toJson() => {
+  /// What the account keeps on the server: no `me`, it comes from the profile.
+  Map<String, Object?> syncJson() => {
     'friends': [for (final friend in friends) friend.toJson()],
     'groups': [for (final group in groups) group.toJson()],
-    'me': me?.toJson(),
   };
+
+  Map<String, Object?> toJson() => {...syncJson(), 'me': me?.toJson()};
 }
 
 final socialProvider = NotifierProvider<SocialNotifier, Social>(
@@ -92,9 +110,12 @@ final socialProvider = NotifierProvider<SocialNotifier, Social>(
 class SocialNotifier extends Notifier<Social> {
   static const _channel = MethodChannel('org.musiclink.prototype/preferences');
 
+  /// Done once the saved contacts are read; changes from the account wait for it.
+  Future<void> loaded = Future.value();
+
   @override
   Social build() {
-    _load();
+    loaded = _load();
     return const Social();
   }
 
@@ -111,8 +132,9 @@ class SocialNotifier extends Notifier<Social> {
     }
   }
 
-  Future<void> _save(Social next) async {
+  Future<void> _save(Social next, {bool sync = true}) async {
     state = next;
+    if (sync) ref.read(syncProvider).localChange();
     try {
       await _channel.invokeMethod('setSocial', jsonEncode(next.toJson()));
     } on PlatformException {
@@ -125,6 +147,18 @@ class SocialNotifier extends Notifier<Social> {
       friends: [
         ...state.friends.where((other) => other.name != friend.name),
         friend,
+      ],
+      groups: state.groups,
+      me: state.me,
+    ),
+  );
+
+  /// Changes the friend with this name where it stands in the list.
+  Future<void> updateFriend(Friend friend) => _save(
+    Social(
+      friends: [
+        for (final other in state.friends)
+          other.name == friend.name ? friend : other,
       ],
       groups: state.groups,
       me: state.me,
@@ -165,14 +199,22 @@ class SocialNotifier extends Notifier<Social> {
     ),
   );
 
-  Future<void> setMe(Friend me) =>
-      _save(Social(friends: state.friends, groups: state.groups, me: me));
+  Future<void> setMe(Friend me) => _save(
+    Social(friends: state.friends, groups: state.groups, me: me),
+    sync: false,
+  );
+
+  /// Takes over what the account holds, which is not a local change to push.
+  Future<void> replace(List<Friend> friends, List<Group> groups) => _save(
+    Social(friends: friends, groups: groups, me: state.me),
+    sync: false,
+  );
 }
 
 String _origin() => apiUrl.replaceFirst(RegExp(r'/+$'), '');
 
 String inviteUrl(Friend me) =>
-    '${_origin()}/f/${inviteSlugs[me.platform]}?name=${Uri.encodeQueryComponent(me.name)}';
+    '${_origin()}/f/${inviteSlugs[me.platform]}?name=${Uri.encodeQueryComponent(me.name)}${me.id == null ? '' : '&u=${me.id}'}';
 
 String inviteText(Friend me, Messages t) =>
     t.inviteText(platforms[me.platform]!, inviteUrl(me));

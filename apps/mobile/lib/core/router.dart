@@ -13,7 +13,10 @@ final routerProvider = Provider((ref) {
             path: '/',
             queryParameters: {
               'link': Uri.parse(apiUrl)
-                  .replace(path: state.uri.path, query: state.uri.hasQuery ? state.uri.query : null)
+                  .replace(
+                    path: state.uri.path,
+                    query: state.uri.hasQuery ? state.uri.query : null,
+                  )
                   .toString(),
             },
           ).toString()
@@ -29,6 +32,7 @@ final routerProvider = Provider((ref) {
         builder: (_, state) => AddFriendScreen(
           name: state.uri.queryParameters['name'],
           service: state.uri.queryParameters['service'],
+          userId: state.uri.queryParameters['u'],
         ),
       ),
       // The invite page songgate.app/f/<service>?name=…
@@ -37,6 +41,7 @@ final routerProvider = Provider((ref) {
         builder: (_, state) => AddFriendScreen(
           name: state.uri.queryParameters['name'],
           service: state.pathParameters['service'],
+          userId: state.uri.queryParameters['u'],
         ),
       ),
     ],

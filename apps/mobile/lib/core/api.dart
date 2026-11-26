@@ -29,7 +29,13 @@ void _noteError(Object status) {
 
 class ApiException implements Exception {
   final String message;
-  const ApiException(this.message);
+
+  /// HTTP status, 0 when the server wasn't reached
+  final int status;
+
+  /// The decoded JSON of an error answer, e.g. the server's state on a 409
+  final Object? body;
+  const ApiException(this.message, {this.status = 0, this.body});
   @override
   String toString() => message;
 }
@@ -48,6 +54,12 @@ class Api {
   final String baseUrl;
   Api(this.client, String baseUrl)
     : baseUrl = baseUrl.replaceFirst(RegExp(r'/+$'), '');
+
+  /// Session token of the account, set by the account controller
+  String? token;
+
+  /// Called when the server rejects the token
+  void Function()? onUnauthorized;
 
   /// Language of error texts, set by localeProvider. The API answers in it too.
   AppLocale locale = AppLocale.de;
@@ -101,6 +113,49 @@ class Api {
     } on FormatException {
       throw ApiException(locale.messages.invalidAnswer);
     } on TypeError {
+      throw ApiException(locale.messages.invalidAnswer);
+    }
+  }
+
+  /// JSON call of the account endpoints. Every call that changes something
+  /// sends the JSON content type, the web proxy refuses it otherwise. [auth]
+  /// adds the session token.
+  Future<Object?> request(
+    String method,
+    String path, {
+    Object? body,
+    bool auth = false,
+  }) async {
+    final request = http.Request(method, _url(path))..headers.addAll(_headers);
+    if (method != 'GET') {
+      request.headers['content-type'] = 'application/json';
+      request.body = jsonEncode(body ?? const {});
+    }
+    final sent = auth ? token : null;
+    if (sent != null) request.headers['authorization'] = 'Bearer $sent';
+    try {
+      final response = await http.Response.fromStream(
+        await client.send(request).timeout(const Duration(seconds: 25)),
+      );
+      final decoded = response.bodyBytes.isEmpty
+          ? null
+          : jsonDecode(utf8.decode(response.bodyBytes));
+      if (response.statusCode >= 400) {
+        if (response.statusCode == 401 && sent != null) onUnauthorized?.call();
+        throw ApiException(
+          _errorMessage(response) ?? locale.messages.serviceUnavailable,
+          status: response.statusCode,
+          body: decoded,
+        );
+      }
+      return decoded;
+    } on ApiException {
+      rethrow;
+    } on TimeoutException {
+      throw ApiException(locale.messages.sendTimeout);
+    } on http.ClientException {
+      throw ApiException(locale.messages.offline);
+    } on FormatException {
       throw ApiException(locale.messages.invalidAnswer);
     }
   }

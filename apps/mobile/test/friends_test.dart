@@ -341,6 +341,11 @@ void main() {
       const ProviderScope(child: MaterialApp(home: FriendsScreen())),
     );
     await tester.pumpAndSettle();
+    // The account card above fills the short window
+    await tester.scrollUntilVisible(
+      find.text('Kontakt von Hand hinzufügen'),
+      100,
+    );
     await tester.tap(find.text('Kontakt von Hand hinzufügen'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Alex');

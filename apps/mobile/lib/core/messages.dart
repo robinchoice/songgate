@@ -138,6 +138,32 @@ abstract class Messages {
   String get others;
   String get sharedWith;
 
+  // Account
+  String get accountCardTitle;
+  String get accountCardText;
+  String get logInWithMail;
+  String get emailLabel;
+  String get sendCode;
+  String get codeLabel;
+  String codeSentTo(String email);
+  String get logIn;
+  String get newCode;
+  String get accountPrivacyNote;
+  String get profileTitle;
+  String get profileHint;
+  String get profileSetUp;
+  String localCopied(int friends, int groups);
+  String get accountIntro;
+  String get accountTitle;
+  String accountSubtitle(String service, String email);
+  String get accountServiceHint;
+  String get logOut;
+  String get deleteAccount;
+  String get deleteAccountHint;
+  String get deleteAccountConfirm;
+  String get linked;
+  String friendSwitched(String name, String service);
+
   // Feedback
   String get reportBug;
   String get feedbackThanks;
@@ -151,7 +177,7 @@ abstract class Messages {
   String get contextDevice;
   String get contextViewport;
   String get contextErrors;
-  String get emailLabel;
+  String get loginEmailLabel;
   String get send;
   String get markHint;
 
@@ -435,6 +461,65 @@ class De extends Messages {
   String get others => 'Andere';
   @override
   String get sharedWith => 'Geteilt mit';
+
+  @override
+  String get accountCardTitle => 'Kontakte auf allen Geräten';
+  @override
+  String get accountCardText =>
+      'Mit Konto bleiben Kontakte und Gruppen beim Handywechsel erhalten, und wenn jemand den Dienst wechselt, passt Songgate es bei dir an. Ohne Konto geht alles wie bisher.';
+  @override
+  String get logInWithMail => 'Mit Mail anmelden';
+  @override
+  String get loginEmailLabel => 'E-Mail';
+  @override
+  String get sendCode => 'Code schicken';
+  @override
+  String get codeLabel => '6-stelliger Code';
+  @override
+  String codeSentTo(String email) =>
+      'Wir haben einen Code an $email geschickt.';
+  @override
+  String get logIn => 'Anmelden';
+  @override
+  String get newCode => 'Neuen Code schicken';
+  @override
+  String get accountPrivacyNote =>
+      'Gespeichert werden nur deine Mail, dein Name, dein Dienst und deine Kontakte. Kein Tracking, keine Werbung.';
+  @override
+  String get profileTitle => 'Dein Profil';
+  @override
+  String get profileHint =>
+      'Das sehen alle, die dich über deine Einladung gespeichert haben.';
+  @override
+  String get profileSetUp => 'Profil vervollständigen';
+  @override
+  String localCopied(int friends, int groups) =>
+      'Von diesem Handy kommen in dein Konto: ${[if (friends > 0) '$friends ${friends == 1 ? 'Kontakt' : 'Kontakte'}', if (groups > 0) '$groups ${groups == 1 ? 'Gruppe' : 'Gruppen'}'].join(' und ')}.';
+  @override
+  String get accountIntro =>
+      'Deine Kontakte sind in deinem Konto und auf allen Geräten, auf denen du angemeldet bist.';
+  @override
+  String get accountTitle => 'Konto';
+  @override
+  String accountSubtitle(String service, String email) => '$service · $email';
+  @override
+  String get accountServiceHint =>
+      'Wechselst du hier den Dienst, sehen es alle, die dich gespeichert haben.';
+  @override
+  String get logOut => 'Abmelden';
+  @override
+  String get deleteAccount => 'Konto löschen';
+  @override
+  String get deleteAccountHint =>
+      'Löschen entfernt Konto, Profil und Kontakte auf dem Server sofort. Auf diesem Handy bleiben deine Kontakte.';
+  @override
+  String get deleteAccountConfirm =>
+      'Konto endgültig löschen? Das lässt sich nicht rückgängig machen.';
+  @override
+  String get linked => 'verbunden';
+  @override
+  String friendSwitched(String name, String service) =>
+      '$name hört jetzt auf $service.';
 
   @override
   String get reportBug => 'Fehler melden';
@@ -746,6 +831,64 @@ class En extends Messages {
   String get others => 'Others';
   @override
   String get sharedWith => 'Shared with';
+
+  @override
+  String get accountCardTitle => 'Contacts on all your devices';
+  @override
+  String get accountCardText =>
+      'With an account, contacts and groups survive a new phone, and when someone switches service, Songgate adjusts it for you. Without an account everything works as before.';
+  @override
+  String get logInWithMail => 'Log in with email';
+  @override
+  String get loginEmailLabel => 'Email';
+  @override
+  String get sendCode => 'Send code';
+  @override
+  String get codeLabel => '6-digit code';
+  @override
+  String codeSentTo(String email) => 'We sent a code to $email.';
+  @override
+  String get logIn => 'Log in';
+  @override
+  String get newCode => 'Send a new code';
+  @override
+  String get accountPrivacyNote =>
+      'Only your email, your name, your service and your contacts are stored. No tracking, no ads.';
+  @override
+  String get profileTitle => 'Your profile';
+  @override
+  String get profileHint =>
+      'Everyone who saved you through your invite sees this.';
+  @override
+  String get profileSetUp => 'Complete profile';
+  @override
+  String localCopied(int friends, int groups) =>
+      'From this phone, ${[if (friends > 0) '$friends ${friends == 1 ? 'contact' : 'contacts'}', if (groups > 0) '$groups ${groups == 1 ? 'group' : 'groups'}'].join(' and ')} will move into your account.';
+  @override
+  String get accountIntro =>
+      'Your contacts are in your account and on every device you are logged in on.';
+  @override
+  String get accountTitle => 'Account';
+  @override
+  String accountSubtitle(String service, String email) => '$service · $email';
+  @override
+  String get accountServiceHint =>
+      'If you switch service here, everyone who saved you sees it.';
+  @override
+  String get logOut => 'Log out';
+  @override
+  String get deleteAccount => 'Delete account';
+  @override
+  String get deleteAccountHint =>
+      'Deleting removes account, profile and contacts on the server right away. Your contacts stay on this phone.';
+  @override
+  String get deleteAccountConfirm =>
+      'Delete the account for good? This cannot be undone.';
+  @override
+  String get linked => 'linked';
+  @override
+  String friendSwitched(String name, String service) =>
+      '$name now listens on $service.';
 
   @override
   String get reportBug => 'Report a bug';

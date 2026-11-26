@@ -42,6 +42,13 @@ test('an invite saves its sender and the own invite shows as a QR code', async (
   await expect(page.getByRole('img', { name: 'QR-Code deiner Einladung' }).locator('svg')).toBeVisible();
 });
 
+test('an invite with a profile id hands it to the app, anything else in u is dropped', async ({ page }) => {
+  const id = '3f2b8c1e-9a4d-4e6f-8b7a-1c2d3e4f5a6b';
+  await page.goto(`/f/spotify?name=Lea&u=${id}`);
+  await expect(page.getByRole('link', { name: 'In der Songgate-App speichern' })).toHaveAttribute('href', `musiclink://app/friend?name=Lea&service=spotify&u=${id}`);
+  await page.goto('/f/spotify?name=Lea&u=javascript:alert(1)');
+  await expect(page.getByRole('link', { name: 'In der Songgate-App speichern' })).toHaveAttribute('href', 'musiclink://app/friend?name=Lea&service=spotify');
+});
 
 test('draft and result selection survive live window changes without overflow', async ({ page }) => {
   await findSavior(page);

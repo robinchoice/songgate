@@ -9,7 +9,7 @@
   import Logo from './Logo.svelte';
 
   // Someone who sent an invite or a song: save them, then send your own service back
-  let { name, platform, heading = 'h1' }: { name: string; platform: Platform; heading?: 'h1' | 'h2' } = $props();
+  let { name, platform, id, heading = 'h1' }: { name: string; platform: Platform; id?: string | undefined; heading?: 'h1' | 'h2' } = $props();
   let saved = $state(false);
   let myName = $state('');
   onMount(() => {
@@ -37,7 +37,7 @@
   </div>
 </div>
 <div class="actions">
-  <a class="button primary" href="musiclink://app/friend?{new URLSearchParams({ name, service: inviteSlugs[platform] })}">{t().saveInApp}</a>
+  <a class="button primary" href="musiclink://app/friend?{new URLSearchParams({ name, service: inviteSlugs[platform], ...(id ? { u: id } : {}) })}">{t().saveInApp}</a>
   <button class="button ghost" onclick={save} disabled={saved}>{saved ? t().saved(name) : t().saveInBrowser}</button>
 </div>
 <div class="answer">

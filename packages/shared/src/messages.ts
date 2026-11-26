@@ -26,6 +26,16 @@ const de = {
   screenshotTooLarge: 'Der Screenshot ist zu groß.',
   invalidImage: 'Der Screenshot muss ein PNG oder JPEG sein.',
 
+  // Accounts in the app
+  signupClosed: 'Konten gibt es gerade nur für eingeladene Adressen.',
+  codeWrong: 'Der Code stimmt nicht oder ist abgelaufen.',
+  altchaFailed: 'Die Prüfung gegen Bots ist fehlgeschlagen. Versuche es erneut.',
+  tooManyAttempts: 'Zu viele Versuche. Versuche es später erneut.',
+  loginRequired: 'Bitte melde dich an.',
+  socialConflict: 'Deine Kontakte wurden inzwischen auf einem anderen Gerät geändert.',
+  loginCodeSubject: (code: string) => `${code} ist dein Code für Songgate`,
+  loginCodeText: (code: string) => `Dein Code für Songgate: ${code}\n\nEr gilt 15 Minuten. Hast du keinen Code angefordert, ignoriere diese Mail.`,
+
   // The message sent to contacts, see friendsMessage in index.ts
   allServices: 'Alle Dienste',
   others: 'Andere',
@@ -204,6 +214,15 @@ const en: Messages = {
   feedbackTooMany: 'Too many reports. Try again later.',
   screenshotTooLarge: 'The screenshot is too large.',
   invalidImage: 'The screenshot must be a PNG or JPEG.',
+
+  signupClosed: 'Accounts are open to invited addresses only for now.',
+  codeWrong: 'The code is wrong or has expired.',
+  altchaFailed: 'The check against bots failed. Try again.',
+  tooManyAttempts: 'Too many attempts. Try again later.',
+  loginRequired: 'Please log in.',
+  socialConflict: 'Your contacts were changed on another device in the meantime.',
+  loginCodeSubject: (code: string) => `${code} is your Songgate code`,
+  loginCodeText: (code: string) => `Your code for Songgate: ${code}\n\nIt is valid for 15 minutes. If you did not ask for a code, ignore this mail.`,
 
   allServices: 'All services',
   others: 'Others',

@@ -84,8 +84,9 @@ export interface Song {
   apps?: PodcastApp[];
 }
 
-// Friends live on the device only. An invite link carries a name and a service.
-export interface Friend { name: string; platform: Platform }
+// Friends live on the device, and with an account in it too. An invite link carries a name and a service,
+// from someone with an account also their profile id, which keeps the friend's service up to date.
+export interface Friend { name: string; platform: Platform; id?: string }
 export const inviteSlugs: Record<Platform, string> = { appleMusic: 'apple', youtubeMusic: 'youtube', spotify: 'spotify', deezer: 'deezer', tidal: 'tidal', amazonMusic: 'amazon' };
 
 // A share page may name its sender, so the recipient can save them and answer with their own service
@@ -162,3 +163,19 @@ export const pleasanceAppsSchema = z.object({
   ),
 });
 export type PleasanceApp = z.infer<typeof pleasanceAppsSchema>['apps'][number];
+
+// Accounts exist in the app only: a profile (name and service) and the saved friends and groups.
+export const emailSchema = z.email('invalidEmail').max(255).toLowerCase();
+export const loginCodeSchema = z.object({ email: emailSchema, altcha: z.string().max(10_000) });
+export const verifyCodeSchema = z.object({ email: emailSchema, code: z.string().regex(/^\d{6}$/, 'codeWrong') });
+export const profileSchema = z.object({ name: z.string().trim().min(1).max(40), platform: platformSchema });
+export type Profile = z.infer<typeof profileSchema>;
+export const profileUpdateSchema = profileSchema.partial();
+const friendName = z.string().trim().min(1).max(40);
+export const socialSchema = z.object({
+  friends: z.array(z.object({ name: friendName, platform: platformSchema, id: z.uuid().exactOptional() })).max(500),
+  groups: z.array(z.object({ name: friendName, members: z.array(friendName).max(500) })).max(200),
+});
+export type Social = z.infer<typeof socialSchema>;
+// The revision the client last saw; the API refuses to overwrite a newer one
+export const socialUpdateSchema = z.object({ social: socialSchema, revision: z.number().int().min(0) });
