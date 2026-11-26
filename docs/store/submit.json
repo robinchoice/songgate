@@ -3,6 +3,7 @@
   "version": "pubspec:apps/mobile/pubspec.yaml",
   "locales": ["de-DE", "en-US"],
   "texts": "docs/store/ios",
+  "release_type": "AFTER_APPROVAL",
   "play": {
     "package": "org.pleasance.songgate",
     "key_secret": "GOOGLE_MUSICLINK_PLAY_KEY_BASE64"
