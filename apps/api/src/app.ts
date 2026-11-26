@@ -9,6 +9,7 @@ import { ResolutionError } from './lib/providers';
 import { captureException } from './monitoring';
 import { accountRoutes } from './routes/accounts';
 import { agentRoutes } from './routes/agents';
+import { phoneRoutes } from './routes/phone';
 import { feedbackRoutes } from './routes/feedback';
 
 const songInput = conversionInput.omit({ target: true });
@@ -84,5 +85,6 @@ export function createApp({ db, resolve: resolver = resolve, resolveAll: resolve
     .route('/api/v1/feedback', db ? feedbackRoutes(db) : new Hono())
     .use('/api/v1/*', bodyLimit({ maxSize: 256 * 1024, onError: c => c.json({ error: t(c).textTooLong }, 413) }))
     .route('/api/v1', db ? accountRoutes(db) : new Hono())
+    .route('/api/v1', db ? phoneRoutes(db) : new Hono())
     .notFound(c => c.json({ error: t(c).notFound }, 404));
 }

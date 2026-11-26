@@ -13,7 +13,11 @@ export const hashToken = (token: string) => new Bun.CryptoHasher('sha256').updat
 
 export const sessionExpiry = () => new Date(Date.now() + SESSION_DAYS * DAY);
 
-export const userColumns = { id: users.id, email: users.email, name: users.name, platform: users.platform };
+export const userColumns = { id: users.id, email: users.email, name: users.name, platform: users.platform, phoneKey: users.phoneKey };
+
+type UserRow = { id: string; email: string; name: string | null; platform: string | null; phoneKey: string | null };
+// What the app gets about its own account: the phone key stays in the API
+export const toUser = ({ id, email, name, platform, phoneKey }: UserRow) => ({ id, email, name, platform, discoverable: phoneKey !== null });
 
 function bearerToken(c: Context) {
   const header = c.req.header('authorization');
@@ -34,7 +38,7 @@ export async function currentUser(db: Database, c: Context) {
   if (row.expiresAt.getTime() - Date.now() < (SESSION_DAYS - 1) * DAY) {
     await db.update(sessions).set({ expiresAt: sessionExpiry() }).where(eq(sessions.id, row.sessionId));
   }
-  return { id: row.id, email: row.email, name: row.name, platform: row.platform, sessionId: row.sessionId };
+  return { id: row.id, email: row.email, name: row.name, platform: row.platform, phoneKey: row.phoneKey, sessionId: row.sessionId };
 }
 
 const envList = (name: string) => (process.env[name] ?? '').split(',').map(entry => entry.trim().toLowerCase()).filter(Boolean);

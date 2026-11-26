@@ -13,6 +13,7 @@ import '../account/account.dart';
 import '../account/account_screens.dart';
 import '../account/sync.dart';
 import '../converter/conversion.dart';
+import 'discover_screen.dart';
 import 'friends_bar.dart';
 import 'social.dart';
 
@@ -315,6 +316,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                   _AccountTile(profile),
                 Text(profile == null ? t.friendsIntro : t.accountIntro),
                 const SizedBox(height: 16),
+                if (profile != null) DiscoverCard(profile),
                 Builder(
                   builder: (context) => FilledButton.icon(
                     onPressed: () => shareInvite(context, ref),

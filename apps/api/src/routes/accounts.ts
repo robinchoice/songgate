@@ -4,7 +4,7 @@ import { and, eq, gt, isNull, lt, sql } from 'drizzle-orm';
 import { type Context, Hono } from 'hono';
 import type { z } from 'zod';
 import { altchaChallenge, altchaSolved } from '../lib/altcha';
-import { currentUser, generateToken, hashToken, mayLogIn, sessionExpiry, userColumns } from '../lib/auth';
+import { currentUser, generateToken, hashToken, mayLogIn, sessionExpiry, toUser, userColumns } from '../lib/auth';
 import { t } from '../lib/i18n';
 import { sendMail } from '../lib/mail';
 import { clientIp, rateLimit } from '../lib/rate-limit';
@@ -19,12 +19,12 @@ const profilesPerIp = rateLimit('profiles-per-ip', 1500, 15 * MINUTE);
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-async function body<T extends z.ZodType>(c: Context, schema: T): Promise<z.infer<T> | null> {
+export async function body<T extends z.ZodType>(c: Context, schema: T): Promise<z.infer<T> | null> {
   const parsed = schema.safeParse(await c.req.json().catch(() => null));
   return parsed.success ? parsed.data : null;
 }
 
-const tooMany = (c: Context) => c.json({ error: t(c).tooManyAttempts }, 429);
+export const tooMany = (c: Context) => c.json({ error: t(c).tooManyAttempts }, 429);
 
 // App only, with the session token as bearer. The email stays inside the API:
 // others see an account's name and service, and only by its random id.
@@ -75,7 +75,7 @@ export function accountRoutes(db: Database) {
       const [user] = await db.select(userColumns).from(users).where(eq(users.email, input.email));
       const token = generateToken();
       await db.insert(sessions).values({ userId: user!.id, tokenHash: hashToken(token), expiresAt: sessionExpiry() });
-      return c.json({ token, user });
+      return c.json({ token, user: toUser(user!) });
     })
 
     .post('/auth/logout', async c => {
@@ -87,7 +87,7 @@ export function accountRoutes(db: Database) {
     .get('/me', async c => {
       const user = await authed(c);
       if (!user) return c.json({ error: t(c).loginRequired }, 401);
-      return c.json({ user: { id: user.id, email: user.email, name: user.name, platform: user.platform } });
+      return c.json({ user: toUser(user) });
     })
 
     .patch('/me', async c => {
@@ -100,7 +100,7 @@ export function accountRoutes(db: Database) {
         .set({ ...input, updatedAt: new Date() })
         .where(eq(users.id, user.id))
         .returning(userColumns);
-      return c.json({ user: updated });
+      return c.json({ user: toUser(updated!) });
     })
 
     // Sessions and the saved contacts go with it (on delete cascade)

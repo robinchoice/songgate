@@ -8,21 +8,21 @@ export function rateLimit(name: string, limit: number, windowMs: number) {
   let nextSweep = 0;
 
   return {
-    // Counts a hit for `key`; false once it goes over the limit.
-    async hit(db: Database, key: string) {
+    // Counts `amount` hits for `key`; false once they go over the limit.
+    async hit(db: Database, key: string, amount = 1) {
       if (Date.now() >= nextSweep) {
         nextSweep = Date.now() + windowMs;
         await db.delete(rateLimits).where(lt(rateLimits.resetAt, new Date()));
       }
 
-      // An expired window starts over at 1. Both CASEs see the old row.
+      // An expired window starts over. Both CASEs see the old row.
       const [row] = await db
         .insert(rateLimits)
-        .values({ key: `${name}:${key}`, count: 1, resetAt: new Date(Date.now() + windowMs) })
+        .values({ key: `${name}:${key}`, count: amount, resetAt: new Date(Date.now() + windowMs) })
         .onConflictDoUpdate({
           target: rateLimits.key,
           set: {
-            count: sql`case when ${rateLimits.resetAt} <= now() then 1 else ${rateLimits.count} + 1 end`,
+            count: sql`case when ${rateLimits.resetAt} <= now() then ${amount} else ${rateLimits.count} + ${amount} end`,
             resetAt: sql`case when ${rateLimits.resetAt} <= now() then excluded.reset_at else ${rateLimits.resetAt} end`,
           },
         })

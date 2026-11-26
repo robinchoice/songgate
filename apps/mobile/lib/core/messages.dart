@@ -164,6 +164,33 @@ abstract class Messages {
   String get linked;
   String friendSwitched(String name, String service);
 
+  // Phone number and finding contacts
+  String get phoneCardTitle;
+  String get phoneCardText;
+  String get addNumber;
+  String get discoverableOn;
+  String get notDiscoverable;
+  String get phoneTitle;
+  String get phoneLabel;
+  String get phoneSmsNote;
+  String get sendSms;
+  String get phoneKeyNote;
+  String get phoneInvalid;
+  String smsSentTo(String number);
+  String get confirm;
+  String get phoneOffHint;
+  String get discoverCardTitle;
+  String get discoverCardText;
+  String get findContacts;
+  String get discoverNeedsNumber;
+  String get checkingContacts;
+  String get foundTitle;
+  String foundCount(int count);
+  String get foundNote;
+  String get alreadySaved;
+  String get noMatches;
+  String get contactsDenied;
+
   // Feedback
   String get reportBug;
   String get feedbackThanks;
@@ -520,6 +547,69 @@ class De extends Messages {
   @override
   String friendSwitched(String name, String service) =>
       '$name hört jetzt auf $service.';
+
+  @override
+  String get phoneCardTitle => 'Über meine Handynummer auffindbar';
+  @override
+  String get phoneCardText =>
+      'Wer deine Nummer im Adressbuch hat und Songgate nutzt, findet dich und deinen Dienst. Deine Nummer selbst sieht niemand, auch wir speichern sie nicht.';
+  @override
+  String get addNumber => 'Nummer hinzufügen';
+  @override
+  String get discoverableOn => '✓ Über deine Nummer auffindbar';
+  @override
+  String get notDiscoverable => 'Nicht mehr auffindbar';
+  @override
+  String get phoneTitle => 'Handynummer';
+  @override
+  String get phoneLabel => 'Handynummer';
+  @override
+  String get phoneSmsNote =>
+      'Wir schicken dir einmal einen Code per SMS, damit niemand eine fremde Nummer eintragen kann.';
+  @override
+  String get sendSms => 'Code per SMS schicken';
+  @override
+  String get phoneKeyNote =>
+      'Gespeichert wird nur ein Schlüsselwert, aus dem sich die Nummer nicht ablesen lässt.';
+  @override
+  String get phoneInvalid =>
+      'Diese Nummer ist ungültig. Gib sie mit Ländervorwahl ein, zum Beispiel +49 151 …';
+  @override
+  String smsSentTo(String number) => 'Code an $number geschickt.';
+  @override
+  String get confirm => 'Bestätigen';
+  @override
+  String get phoneOffHint =>
+      'Abschalten geht jederzeit hier im Konto, dann löschen wir den Schlüsselwert sofort.';
+  @override
+  String get discoverCardTitle => 'Wer aus deinem Adressbuch ist bei Songgate?';
+  @override
+  String get discoverCardText =>
+      'Songgate prüft die Nummern auf deinem Handy, ohne sie uns zu zeigen. Nur wer selbst auffindbar ist, taucht auf.';
+  @override
+  String get findContacts => 'Kontakte finden';
+  @override
+  String get discoverNeedsNumber =>
+      'Damit du Kontakte finden kannst, musst du selbst auffindbar sein. Füge dafür zuerst deine Nummer hinzu.';
+  @override
+  String get checkingContacts => 'Songgate prüft dein Adressbuch …';
+  @override
+  String get foundTitle => 'Gefunden';
+  @override
+  String foundCount(int count) => count == 1
+      ? '1 Person aus deinem Adressbuch ist bei Songgate.'
+      : '$count Personen aus deinem Adressbuch sind bei Songgate.';
+  @override
+  String get foundNote =>
+      'Angezeigt wird der Name aus deinem Adressbuch, dazu der Dienst aus dem Profil.';
+  @override
+  String get alreadySaved => 'schon gespeichert';
+  @override
+  String get noMatches =>
+      'Noch niemand aus deinem Adressbuch ist auffindbar. Schick deine Einladung!';
+  @override
+  String get contactsDenied =>
+      'Ohne Zugriff auf deine Kontakte kann Songgate dein Adressbuch nicht prüfen. Du kannst den Zugriff in den Einstellungen deines Handys erlauben.';
 
   @override
   String get reportBug => 'Fehler melden';
@@ -889,6 +979,69 @@ class En extends Messages {
   @override
   String friendSwitched(String name, String service) =>
       '$name now listens on $service.';
+
+  @override
+  String get phoneCardTitle => 'Findable by my phone number';
+  @override
+  String get phoneCardText =>
+      'Anyone who has your number in their address book and uses Songgate finds you and your service. Nobody sees your number itself, and we do not store it either.';
+  @override
+  String get addNumber => 'Add number';
+  @override
+  String get discoverableOn => '✓ Findable by your number';
+  @override
+  String get notDiscoverable => 'No longer findable';
+  @override
+  String get phoneTitle => 'Phone number';
+  @override
+  String get phoneLabel => 'Phone number';
+  @override
+  String get phoneSmsNote =>
+      'We text you a code once, so nobody can enter a number that is not theirs.';
+  @override
+  String get sendSms => 'Text me a code';
+  @override
+  String get phoneKeyNote =>
+      'Only a key value is stored, from which the number cannot be read.';
+  @override
+  String get phoneInvalid =>
+      'This number is not valid. Enter it with the country code, for example +1 415 …';
+  @override
+  String smsSentTo(String number) => 'Code sent to $number.';
+  @override
+  String get confirm => 'Confirm';
+  @override
+  String get phoneOffHint =>
+      'You can switch this off any time here in the account, then we delete the key value right away.';
+  @override
+  String get discoverCardTitle => 'Who from your address book is on Songgate?';
+  @override
+  String get discoverCardText =>
+      'Songgate checks the numbers on your phone without showing them to us. Only people who made themselves findable show up.';
+  @override
+  String get findContacts => 'Find contacts';
+  @override
+  String get discoverNeedsNumber =>
+      'To find contacts you have to be findable yourself. Add your own number first.';
+  @override
+  String get checkingContacts => 'Songgate is checking your address book …';
+  @override
+  String get foundTitle => 'Found';
+  @override
+  String foundCount(int count) => count == 1
+      ? '1 person from your address book is on Songgate.'
+      : '$count people from your address book are on Songgate.';
+  @override
+  String get foundNote =>
+      'You see the name from your address book, plus the service from the profile.';
+  @override
+  String get alreadySaved => 'already saved';
+  @override
+  String get noMatches =>
+      'Nobody from your address book is findable yet. Send your invite!';
+  @override
+  String get contactsDenied =>
+      'Without access to your contacts Songgate cannot check your address book. You can allow it in your phone\'s settings.';
 
   @override
   String get reportBug => 'Report a bug';

@@ -32,6 +32,8 @@ services:
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
       SIGNUP_ALLOWLIST: ${SIGNUP_ALLOWLIST:-}
       SIGNUP_OPEN: ${SIGNUP_OPEN:-false}
+      OPRF_KEY: ${OPRF_KEY:-}
+      SEVEN_API_KEY: ${SEVEN_API_KEY:-}
       SENTRY_DSN: ${SENTRY_DSN:-}
     depends_on:
       postgres:

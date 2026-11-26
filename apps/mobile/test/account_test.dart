@@ -12,6 +12,7 @@ import 'package:musiclink/app.dart';
 import 'package:musiclink/core/api.dart';
 import 'package:musiclink/core/router.dart';
 import 'package:musiclink/features/account/account.dart';
+import 'package:musiclink/features/account/oprf.dart';
 import 'package:musiclink/features/account/sync.dart';
 import 'package:musiclink/features/friends/friends_screen.dart';
 import 'package:musiclink/features/friends/social.dart';
@@ -33,6 +34,39 @@ class FakeServer {
   Map<String, Object?> social = {'friends': [], 'groups': []};
   int revision = 0;
   final profiles = <String, Map<String, Object?>>{};
+
+  /// The OPRF key of this fake server, any scalar below the group order
+  final oprfKey = BigInt.parse(
+    '5f3c9a1e77d2b84c0a96e1d35b7f20c48e6a19d3f5c27b80146ad9e3c5b7f291',
+    radix: 16,
+  );
+  String? pendingPhone;
+
+  /// Keys of the discoverable numbers by profile, what GET /discover/keys lists
+  final discoverable = <String, Map<String, Object?>>{};
+
+  /// Numbers asked for per evaluate call
+  final evaluateSizes = <int>[];
+
+  /// The daily quota of numbers, null for none
+  int? evaluateQuota;
+
+  /// Answers with points that are not on the curve
+  bool corruptEvaluation = false;
+  int _evaluated = 0;
+
+  /// The key the server derives for a number, as in RFC 9497 Evaluate
+  String keyOf(String phone) {
+    final client = OprfClient();
+    final blinded = client.blind(
+      Uint8List.fromList(utf8.encode(phone)),
+      blind: BigInt.one,
+    );
+    return toHex(client.finalize(blinded, _evaluate(blinded.element)));
+  }
+
+  Uint8List _evaluate(List<int> element) =>
+      serializeElement((deserializeElement(element) * oprfKey)!);
 
   late final client = MockClient((request) async {
     if (!online) throw http.ClientException('offline');
@@ -95,6 +129,52 @@ class FakeServer {
         }
         social = body()['social'] as Map<String, Object?>;
         return _json({'revision': ++revision});
+    }
+    if (path.startsWith('/me/phone') || path.startsWith('/discover/')) {
+      if (!loggedIn) return _json({'error': 'no'}, 401);
+      switch ((request.method, path)) {
+        case ('POST', '/me/phone'):
+          pendingPhone = body()['phone'] as String;
+          return _json({'ok': true});
+        case ('POST', '/me/phone/verify'):
+          if (body()['code'] != '123456') {
+            return _json({'error': 'Der Code stimmt nicht.'}, 400);
+          }
+          user = {...user, 'discoverable': true};
+          return _json({'user': user});
+        case ('DELETE', '/me/phone'):
+          user = {...user, 'discoverable': false};
+          return _json({'user': user});
+        case ('POST', '/discover/evaluate'):
+          final blinded = (body()['blinded'] as List).cast<String>();
+          evaluateSizes.add(blinded.length);
+          if (user['discoverable'] != true) {
+            return _json({'error': 'Zuerst Nummer bestätigen.'}, 403);
+          }
+          _evaluated += blinded.length;
+          if (evaluateQuota != null && _evaluated > evaluateQuota!) {
+            return _json({'error': 'Tageslimit erreicht.'}, 429);
+          }
+          return _json({
+            'evaluated': [
+              for (final item in blinded)
+                base64Encode(
+                  _evaluate(base64Decode(item))
+                    ..[32] ^= corruptEvaluation ? 1 : 0,
+                ),
+            ],
+          });
+        case ('GET', '/discover/keys'):
+          return _json({'keys': discoverable.keys.toList()});
+        case ('POST', '/discover/profiles'):
+          return _json({
+            'profiles': [
+              for (final key in (body()['keys'] as List).cast<String>())
+                if (discoverable[key] case final profile?)
+                  {'key': key, ...profile},
+            ],
+          });
+      }
     }
     if (path.startsWith('/profiles/')) {
       final profile = profiles[path.substring('/profiles/'.length)];

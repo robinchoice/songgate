@@ -10,6 +10,7 @@
   "dependencies": {
     "@app/db": "workspace:*",
     "@app/shared": "workspace:*",
+    "@cloudflare/voprf-ts": "^1.0.0",
     "@sentry/bun": "^11.4.0",
     "altcha-lib": "^2.7.0",
     "drizzle-orm": "^0.45.3",

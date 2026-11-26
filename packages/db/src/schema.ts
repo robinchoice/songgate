@@ -41,6 +41,9 @@ export const users = pgTable(
     email: varchar('email', { length: 255 }).notNull().unique(),
     name: varchar('name', { length: 40 }),
     platform: varchar('platform', { length: 20 }),
+    // Set once the number is confirmed by SMS: the OPRF key of the number
+    // (apps/api/src/lib/oprf.ts), never the number. Makes the account discoverable.
+    phoneKey: varchar('phone_key', { length: 64 }).unique(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
@@ -60,6 +63,24 @@ export const loginCodes = pgTable(
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => [index('login_codes_email').on(table.email), check('login_codes_attempts', sql`${table.attempts} >= 0`)],
+);
+
+// A 6-digit code by SMS confirms a phone number, kept only as its OPRF key
+export const phoneCodes = pgTable(
+  'phone_codes',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    phoneKey: varchar('phone_key', { length: 64 }).notNull(),
+    codeHash: varchar('code_hash', { length: 64 }).notNull(),
+    attempts: integer('attempts').default(0).notNull(),
+    expiresAt: timestamp('expires_at').notNull(),
+    usedAt: timestamp('used_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [index('phone_codes_user').on(table.userId), check('phone_codes_attempts', sql`${table.attempts} >= 0`)],
 );
 
 // Only token hashes are stored, so a leaked database holds no usable sessions

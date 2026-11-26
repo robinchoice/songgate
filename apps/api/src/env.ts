@@ -20,6 +20,8 @@ const envSchema = z.object({
   SPOTIFY_CLIENT_SECRET: z.string().exactOptional(),
   SIGNUP_ALLOWLIST: z.string().exactOptional(),
   SIGNUP_OPEN: z.enum(['true', 'false', '']).exactOptional(),
+  OPRF_KEY: z.string().regex(/^([0-9a-f]{64})?$/).exactOptional(),
+  SEVEN_API_KEY: z.string().exactOptional(),
 });
 
 declare module 'bun' {

@@ -35,11 +35,16 @@ class Profile {
   final String email;
   final String? name;
   final String? platform;
+
+  /// Others who have the confirmed phone number in their address book find
+  /// this profile by it.
+  final bool discoverable;
   const Profile({
     required this.id,
     required this.email,
     this.name,
     this.platform,
+    this.discoverable = false,
   });
 
   factory Profile.fromJson(Map<String, dynamic> json) => Profile(
@@ -49,6 +54,7 @@ class Profile {
     platform: platforms.containsKey(json['platform'])
         ? json['platform'] as String
         : null,
+    discoverable: json['discoverable'] == true,
   );
 
   Map<String, Object?> toJson() => {
@@ -56,6 +62,7 @@ class Profile {
     'email': email,
     'name': name,
     'platform': platform,
+    'discoverable': discoverable,
   };
 
   bool get complete => name != null && platform != null;
@@ -71,6 +78,9 @@ class AccountController extends AsyncNotifier<Profile?> {
   static const _profileKey = 'profile';
   static const _revisionKey = 'social_revision';
   static const _dirtyKey = 'social_dirty';
+
+  // The confirmed number stays on this phone only, to skip it when searching
+  static const _phoneKey = 'own_phone';
 
   /// Revision of the contacts document on the server this device last saw
   int revision = 0;
@@ -189,6 +199,41 @@ class AccountController extends AsyncNotifier<Profile?> {
     return profile;
   }
 
+  /// Texts a 6-digit code to [phone] (E.164).
+  Future<void> requestPhoneCode(String phone) async {
+    await _api.request('POST', '/me/phone', body: {'phone': phone}, auth: true);
+  }
+
+  /// Confirms [phone] with the code. From then on the account is discoverable.
+  Future<Profile> verifyPhone(String phone, String code) async {
+    final json = await _api.request(
+      'POST',
+      '/me/phone/verify',
+      body: {'code': code},
+      auth: true,
+    ) as Map<String, dynamic>;
+    await _write(_phoneKey, phone);
+    final profile = Profile.fromJson(json['user'] as Map<String, dynamic>);
+    await _save(profile);
+    return profile;
+  }
+
+  /// The server deletes the key value of the number right away.
+  Future<Profile> removePhone() async {
+    final json = await _api.request(
+      'DELETE',
+      '/me/phone',
+      auth: true,
+    ) as Map<String, dynamic>;
+    await _delete(_phoneKey);
+    final profile = Profile.fromJson(json['user'] as Map<String, dynamic>);
+    await _save(profile);
+    return profile;
+  }
+
+  /// The number confirmed on this phone, E.164, null if unknown.
+  Future<String?> ownPhone() => _read(_phoneKey);
+
   Future<void> logout() async {
     try {
       await _api.request('POST', '/auth/logout', auth: true);
@@ -231,7 +276,13 @@ class AccountController extends AsyncNotifier<Profile?> {
           .read(socialProvider.notifier)
           .setMe(Friend(me!.name, me.platform));
     }
-    for (final key in [_tokenKey, _profileKey, _revisionKey, _dirtyKey]) {
+    for (final key in [
+      _tokenKey,
+      _profileKey,
+      _revisionKey,
+      _dirtyKey,
+      _phoneKey,
+    ]) {
       await _delete(key);
     }
   }

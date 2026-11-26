@@ -7,6 +7,7 @@ import '../../core/locale.dart';
 import '../converter/conversion.dart';
 import '../friends/social.dart';
 import 'account.dart';
+import 'discover.dart';
 import 'sync.dart';
 
 /// The own identity for invites: the account's profile when logged in, else
@@ -386,6 +387,15 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                 ),
           child: Text(t.save),
         ),
+        if (profile != null) ...[
+          const SizedBox(height: 16),
+          _PhoneCard(
+            profile,
+            busy: _busy,
+            onRemove: () =>
+                _run(ref.read(accountProvider.notifier).removePhone),
+          ),
+        ],
         const SizedBox(height: 8),
         OutlinedButton(
           onPressed: _busy
@@ -407,6 +417,176 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
         ),
         const SizedBox(height: 8),
         Text(t.deleteAccountHint, style: theme.textTheme.bodySmall),
+        _ErrorText(_error),
+      ],
+    );
+  }
+}
+
+/// Offers to be found by the phone number, or shows that it is on.
+class _PhoneCard extends ConsumerWidget {
+  final Profile profile;
+  final bool busy;
+  final VoidCallback onRemove;
+  const _PhoneCard(this.profile, {required this.busy, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = ref.watch(messagesProvider);
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (profile.discoverable) ...[
+              Text(t.discoverableOn, style: theme.textTheme.titleSmall),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: busy ? null : onRemove,
+                child: Text(t.notDiscoverable),
+              ),
+            ] else ...[
+              Text(t.phoneCardTitle, style: theme.textTheme.titleSmall),
+              const SizedBox(height: 8),
+              Text(t.phoneCardText),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: busy ? null : () => openPhoneScreen(context),
+                child: Text(t.addNumber),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> openPhoneScreen(BuildContext context) =>
+    Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => const PhoneScreen()));
+
+/// The number, then the code from the SMS. Afterwards the account is
+/// discoverable.
+class PhoneScreen extends ConsumerStatefulWidget {
+  const PhoneScreen({super.key});
+
+  @override
+  ConsumerState<PhoneScreen> createState() => _PhoneScreenState();
+}
+
+class _PhoneScreenState extends ConsumerState<PhoneScreen> {
+  final _number = TextEditingController();
+  final _code = TextEditingController();
+  String? _phone;
+  var _done = false;
+  var _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _number.dispose();
+    _code.dispose();
+    super.dispose();
+  }
+
+  Future<void> _run(Future<void> Function() action) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await action();
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _sendCode() async {
+    final phone = toE164(_number.text, ref.read(defaultRegionProvider));
+    if (phone == null) {
+      setState(() => _error = ref.read(messagesProvider).phoneInvalid);
+      return;
+    }
+    await _run(() async {
+      await ref.read(accountProvider.notifier).requestPhoneCode(phone);
+      if (mounted) setState(() => _phone = phone);
+    });
+  }
+
+  Future<void> _confirm() => _run(() async {
+    await ref
+        .read(accountProvider.notifier)
+        .verifyPhone(_phone!, _code.text.trim());
+    if (mounted) setState(() => _done = true);
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = ref.watch(messagesProvider);
+    final theme = Theme.of(context);
+    final phone = _phone;
+    return _Page(
+      title: t.phoneTitle,
+      children: [
+        if (_done) ...[
+          Text(t.discoverableOn, style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(t.phoneOffHint),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(t.done),
+          ),
+        ] else if (phone == null) ...[
+          Text(t.phoneSmsNote),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _number,
+            keyboardType: TextInputType.phone,
+            autofillHints: const [AutofillHints.telephoneNumber],
+            decoration: InputDecoration(labelText: t.phoneLabel),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: _busy || _number.text.trim().isEmpty ? null : _sendCode,
+            child: Text(t.sendSms),
+          ),
+          const SizedBox(height: 8),
+          Text(t.phoneKeyNote, style: theme.textTheme.bodySmall),
+        ] else ...[
+          Text(t.smsSentTo(maskNumber(phone))),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _code,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            autofillHints: const [AutofillHints.oneTimeCode],
+            decoration: InputDecoration(labelText: t.codeLabel),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 8),
+          FilledButton(
+            onPressed: _busy || _code.text.trim().length != 6 ? null : _confirm,
+            child: Text(t.confirm),
+          ),
+          TextButton(
+            onPressed: _busy
+                ? null
+                : () => _run(
+                    () => ref
+                        .read(accountProvider.notifier)
+                        .requestPhoneCode(phone),
+                  ),
+            child: Text(t.newCode),
+          ),
+        ],
         _ErrorText(_error),
       ],
     );

@@ -35,6 +35,12 @@ const de = {
   socialConflict: 'Deine Kontakte wurden inzwischen auf einem anderen Gerät geändert.',
   loginCodeSubject: (code: string) => `${code} ist dein Code für Songgate`,
   loginCodeText: (code: string) => `Dein Code für Songgate: ${code}\n\nEr gilt 15 Minuten. Hast du keinen Code angefordert, ignoriere diese Mail.`,
+  phoneInvalid: 'Die Handynummer stimmt nicht. Gib sie mit Ländervorwahl ein, z. B. +49 151 …',
+  phoneCodeText: (code: string) => `${code} ist dein Code für Songgate. Er gilt 15 Minuten.`,
+  phoneRequired: 'Bestätige zuerst deine eigene Handynummer.',
+  discoverLimit: 'Heute sind genug Nummern geprüft. Versuche es morgen erneut.',
+  discoverUnavailable: 'Die Suche über Handynummern ist gerade nicht verfügbar.',
+  smsFailed: 'Die SMS ließ sich nicht verschicken. Versuche es später erneut.',
 
   // The message sent to contacts, see friendsMessage in index.ts
   allServices: 'Alle Dienste',
@@ -223,6 +229,12 @@ const en: Messages = {
   socialConflict: 'Your contacts were changed on another device in the meantime.',
   loginCodeSubject: (code: string) => `${code} is your Songgate code`,
   loginCodeText: (code: string) => `Your code for Songgate: ${code}\n\nIt is valid for 15 minutes. If you did not ask for a code, ignore this mail.`,
+  phoneInvalid: 'The phone number is not valid. Enter it with the country code, e.g. +44 7700 …',
+  phoneCodeText: (code: string) => `${code} is your Songgate code. It is valid for 15 minutes.`,
+  phoneRequired: 'Confirm your own phone number first.',
+  discoverLimit: 'Enough numbers checked for today. Try again tomorrow.',
+  discoverUnavailable: 'Finding contacts by phone number is not available right now.',
+  smsFailed: 'The SMS could not be sent. Try again later.',
 
   allServices: 'All services',
   others: 'Others',

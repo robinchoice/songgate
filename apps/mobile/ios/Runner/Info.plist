@@ -19,6 +19,8 @@
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Damit du siehst, wer aus deinem Adressbuch Songgate nutzt. Die Nummern verlassen dein Handy nur verschlüsselt.</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>INSendMessageIntent</string>
