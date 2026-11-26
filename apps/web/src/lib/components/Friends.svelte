@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { renderSVG } from 'uqr';
-  import { platformSchema, platforms, type Platform } from '@app/shared';
-  import { addFriend, addGroup, inviteUrl, loadFriends, removeFriend, shareInvite, social } from '#lib/friends.svelte.ts';
+  import { platformSchema, platforms, type Friend, type Platform } from '@app/shared';
+  import { addFriend, addGroup, inviteUrl, loadFriends, removeFriend, removeGroup, shareInvite, social, updateFriend } from '#lib/friends.svelte.ts';
   import { t } from '#lib/i18n.ts';
   import Avatar from './Avatar.svelte';
 
@@ -11,6 +11,8 @@
   let panel = $state<'' | 'add' | 'group' | 'invite' | 'edit'>('');
   let name = $state('');
   let platform = $state<Platform>('spotify');
+  // The contact being changed while editing
+  let editing = $state('');
   onMount(loadFriends);
   // Face to face the invite is scanned instead of sent
   const qr = $derived(panel === 'invite' && name.trim() ? renderSVG(inviteUrl(location.origin, { name: name.trim().slice(0, 40), platform }), { border: 2 }) : '');
@@ -22,7 +24,7 @@
   const toggle = (friend: string) => pick(selected.includes(friend) ? selected.filter(other => other !== friend) : [...selected, friend]);
   const groupOn = (members: string[]) => members.length === selected.length && members.every(member => selected.includes(member));
   const anyGroup = $derived(social.groups.some(group => groupOn(group.members)));
-  const open = (next: typeof panel) => { panel = panel === next ? '' : next; name = next === 'invite' ? social.me?.name ?? '' : ''; platform = next === 'invite' ? social.me?.platform ?? 'spotify' : 'spotify'; };
+  const open = (next: typeof panel) => { panel = panel === next ? '' : next; editing = ''; name = next === 'invite' ? social.me?.name ?? '' : ''; platform = next === 'invite' ? social.me?.platform ?? 'spotify' : 'spotify'; };
 
   function submit(event: SubmitEvent) {
     event.preventDefault();
@@ -31,7 +33,28 @@
     if (panel === 'add') { addFriend({ name: value, platform }); pick([...selected.filter(other => other !== value), value]); }
     if (panel === 'group') addGroup(value, selected);
     if (panel === 'invite') { invite(value); return; }
+    if (panel === 'edit') {
+      updateFriend(editing, { name: value, platform });
+      pick([...new Set(selected.map(other => other === editing ? value : other))]);
+      editing = '';
+      return;
+    }
     panel = '';
+  }
+
+  function change(friend: Friend) {
+    if (editing === friend.name) { editing = ''; return; }
+    editing = friend.name;
+    name = friend.name;
+    platform = friend.platform;
+  }
+
+  function remove(friend: string) {
+    removeFriend(friend);
+    pick(selected.filter(other => other !== friend));
+    if (editing === friend) editing = '';
+    // Without contacts there is nothing left to edit, and no button to leave
+    if (!social.friends.length) panel = '';
   }
 
   async function invite(value: string) {
@@ -45,8 +68,11 @@
   </div>
   <div class="row" role="group" aria-label={t().toWhom}>
     {#if panel === 'edit'}
+      {#each social.groups as group (group.name)}
+        <span class="pick split"><span class="label"><span class="count" aria-hidden="true">{group.members.length}</span>{group.name}</span><button type="button" class="x" onclick={() => removeGroup(group.name)} aria-label={t().remove(group.name)}><span class="remove" aria-hidden="true">×</span></button></span>
+      {/each}
       {#each social.friends as friend (friend.name)}
-        <button type="button" class="pick" onclick={() => { removeFriend(friend.name); pick(selected.filter(other => other !== friend.name)); }} aria-label={t().remove(friend.name)}><Avatar {friend} />{friend.name}<span class="remove" aria-hidden="true">×</span></button>
+        <span class="pick split" class:active={editing === friend.name}><button type="button" class="label" aria-expanded={editing === friend.name} onclick={() => change(friend)} aria-label={t().editFriend(friend.name)} title={platforms[friend.platform]}><Avatar {friend} />{friend.name}</button><button type="button" class="x" onclick={() => remove(friend.name)} aria-label={t().remove(friend.name)}><span class="remove" aria-hidden="true">×</span></button></span>
       {/each}
     {:else}
       <button type="button" class="pick text" aria-pressed={!services.length} onclick={() => { selected = []; services = []; }}>{t().everyone}</button>
@@ -61,9 +87,9 @@
     {/if}
   </div>
   {#if !social.friends.length && !panel}<p class="empty">{t().friendsEmpty}</p>{/if}
-  {#if panel === 'add' || panel === 'group' || panel === 'invite'}
+  {#if panel === 'add' || panel === 'group' || panel === 'invite' || editing}
     <form class="panel" onsubmit={submit}>
-      <p>{panel === 'add' ? t().addFriendHint : panel === 'group' ? t().groupOf(selected.join(', ')) : t().inviteHint}</p>
+      <p>{panel === 'edit' ? t().editFriend(editing) : panel === 'add' ? t().addFriendHint : panel === 'group' ? t().groupOf(selected.join(', ')) : t().inviteHint}</p>
       <input bind:value={name} maxlength="40" placeholder={panel === 'group' ? t().groupName : panel === 'invite' ? t().yourName : t().name} required />
       {#if panel !== 'group'}<select bind:value={platform}>{#each platformSchema.options as key}<option value={key}>{platforms[key]}</option>{/each}</select>{/if}
       <button type="submit" class="button primary">{panel === 'invite' ? t().shareInvite : t().save}</button>
@@ -84,7 +110,10 @@
   .pick:hover { background: var(--raised); }
   .pick.text { padding: 9px 14px; }
   .pick.add { border-style: dashed; color: var(--muted); }
-  .pick[aria-pressed="true"] { background: linear-gradient(var(--raised), var(--raised)) padding-box, var(--gradient) border-box; border: 1px solid transparent; }
+  .split { padding: 0; gap: 0; }
+  .split .label { display: inline-flex; align-items: center; gap: 8px; padding: 5px 6px 5px 5px; background: none; border: 0; color: inherit; font: inherit; }
+  .split .x { display: grid; place-items: center; align-self: stretch; padding: 0 10px 0 6px; background: none; border: 0; }
+  .pick[aria-pressed="true"], .pick.active { background: linear-gradient(var(--raised), var(--raised)) padding-box, var(--gradient) border-box; border: 1px solid transparent; }
   .count { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--raised); font-size: 12px; }
   .remove { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--error); color: var(--ink); font-size: 12px; }
   .panel { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; padding: 14px; border-radius: 18px; border: 1px solid var(--border); background: rgb(0 0 0 / .2); }

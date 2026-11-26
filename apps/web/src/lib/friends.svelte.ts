@@ -44,6 +44,18 @@ export function removeFriend(name: string) {
   save();
 }
 
+// Renaming keeps the contact's place and its groups
+export function updateFriend(previous: string, friend: Friend) {
+  social.friends = social.friends.flatMap(other => other.name === previous ? [friend] : other.name === friend.name ? [] : [other]);
+  social.groups = social.groups.map(group => ({ ...group, members: [...new Set(group.members.map(member => member === previous ? friend.name : member))] }));
+  save();
+}
+
+export function removeGroup(name: string) {
+  social.groups = social.groups.filter(group => group.name !== name);
+  save();
+}
+
 export function addGroup(name: string, members: string[]) {
   social.groups = [...social.groups.filter(group => group.name !== name), { name, members }];
   save();

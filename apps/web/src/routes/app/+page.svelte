@@ -25,6 +25,8 @@
   // Apple Podcasts links come from Apple's podcast hosts
   const sourceKind = $derived(/(?:podcasts|itunes)\.apple\.com\//.test(input) ? 'podcast' : 'song');
   const friends = $derived(social.friends.filter(friend => chosen.includes(friend.name)));
+  // Like the message, a picked service without podcasts gets no button
+  const opens = $derived(song ? serviceOrder.filter(platform => services.includes(platform) && servicesFor(song!.source.kind).includes(platform)) : []);
   const message = $derived(song ? friendsMessage(song, friends, location.origin, social.me, serviceOrder.filter(platform => services.includes(platform)), page.data.locale) : '');
 
   onMount(() => {
@@ -137,6 +139,9 @@
               {#if canShare}<button class="button primary" type="button" onclick={share}>{t().share}</button>{/if}
               <button class="button {canShare ? 'ghost' : 'primary'}" type="button" onclick={copy}>{t().copy}</button>
             </div>
+            {#each opens as platform (platform)}
+              <a class="button ghost open" href={song.links[platform].url} target="_blank" rel="noreferrer"><Logo {platform} kind={song.source.kind} size={18} />{t().openIn(serviceName(platform, song.source.kind))}</a>
+            {/each}
           </div>
         </div>
       </section>
@@ -196,6 +201,7 @@
   pre { margin: 0 0 14px; font: inherit; font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
   .actions { display: flex; gap: 8px; }
   .actions .button { flex: 1; }
+  .open { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 8px; text-decoration: none; }
 
   @media(max-width: 650px) {
     .shell { padding: 0 18px; }

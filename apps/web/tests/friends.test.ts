@@ -61,3 +61,66 @@ test('draft and result selection survive live window changes without overflow', 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
 });
+
+const seed = (page: import('@playwright/test').Page) => page.addInitScript(() => {
+  if (localStorage.getItem('musiclink-friends') !== null) return;
+  localStorage.setItem('musiclink-friends', JSON.stringify({
+    friends: [{ name: 'Alex', platform: 'spotify' }, { name: 'Sam', platform: 'deezer' }],
+    groups: [{ name: 'WG', members: ['Alex', 'Sam'] }],
+    me: null,
+  }));
+});
+const saved = (page: import('@playwright/test').Page): Promise<unknown> => page.evaluate(() => JSON.parse(localStorage.getItem('musiclink-friends') ?? 'null'));
+
+test('a group is removed while editing and its contacts stay', async ({ page }) => {
+  await seed(page);
+  await findSavior(page);
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  await page.getByRole('button', { name: 'WG entfernen' }).click();
+  await expect(page.getByText('WG', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Fertig' }).click();
+  await expect(page.getByRole('button', { name: /Alex/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Sam/ })).toBeVisible();
+  expect(await saved(page)).toEqual({ friends: [{ name: 'Alex', platform: 'spotify' }, { name: 'Sam', platform: 'deezer' }], groups: [], me: null });
+});
+
+test('a contact changes service and name in place while editing', async ({ page }) => {
+  await seed(page);
+  await findSavior(page);
+  await page.getByRole('button', { name: 'WG', exact: true }).click();
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  await page.getByRole('button', { name: 'Alex bearbeiten' }).click();
+  await expect(page.getByText('Alex bearbeiten')).toBeVisible();
+  await page.getByPlaceholder('Name', { exact: true }).fill('Alexa');
+  await page.getByRole('combobox').selectOption('appleMusic');
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await page.getByRole('button', { name: 'Fertig' }).click();
+  expect(await saved(page)).toEqual({ friends: [{ name: 'Alexa', platform: 'appleMusic' }, { name: 'Sam', platform: 'deezer' }], groups: [{ name: 'WG', members: ['Alexa', 'Sam'] }], me: null });
+  await expect(page.getByRole('button', { name: 'WG', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('pre')).toContainText('Apple Music (Alexa): https://music.apple.com/de/song/1');
+  await expect(page.locator('pre')).not.toContainText('Spotify');
+});
+
+test('regression: removing the last contact while editing leaves edit mode', async ({ page }) => {
+  await findSavior(page);
+  await page.getByRole('button', { name: 'Neu', exact: false }).click();
+  await page.getByPlaceholder('Name', { exact: true }).fill('Alex');
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  await page.getByRole('button', { name: 'Alex entfernen' }).click();
+  await expect(page.getByRole('button', { name: 'Neu', exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Alle', exact: true })).toBeVisible();
+});
+
+test('picked services offer to open their link', async ({ page }) => {
+  await findSavior(page);
+  await expect(page.getByRole('link', { name: /öffnen$/ })).toHaveCount(0);
+  await page.getByRole('button', { name: /Deezer/ }).click();
+  await page.getByRole('button', { name: /^Spotify/ }).click();
+  const links = page.getByRole('link', { name: /öffnen$/ });
+  await expect(links).toHaveText(['In Spotify öffnen', 'In Deezer öffnen']);
+  await expect(links.first()).toHaveAttribute('href', 'https://open.spotify.com/track/x');
+  await expect(links.last()).toHaveAttribute('href', 'https://www.deezer.com/search/Savior');
+  await page.getByRole('button', { name: /^Spotify/ }).click();
+  await expect(links).toHaveText(['In Deezer öffnen']);
+});

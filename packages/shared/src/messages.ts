@@ -70,6 +70,7 @@ const de = {
   found: 'Gefunden',
   share: 'Teilen',
   copy: 'Kopieren',
+  openIn: (service: string) => `In ${service} öffnen`,
 
   // Web: contacts and invites
   toWhom: 'An wen?',
@@ -79,6 +80,7 @@ const de = {
   edit: 'Bearbeiten',
   myInvite: 'Meine Einladung',
   remove: (name: string) => `${name} entfernen`,
+  editFriend: (name: string) => `${name} bearbeiten`,
   everyone: 'Alle',
   addNew: '+ Neu',
   saveAsGroup: 'Als Gruppe speichern',
@@ -243,6 +245,7 @@ const en: Messages = {
   found: 'Found',
   share: 'Share',
   copy: 'Copy',
+  openIn: service => `Open in ${service}`,
 
   toWhom: 'For whom?',
   toWhomHint: 'Tap a group, contacts or just services',
@@ -251,6 +254,7 @@ const en: Messages = {
   edit: 'Edit',
   myInvite: 'My invite',
   remove: (name) => `Remove ${name}`,
+  editFriend: (name) => `Edit ${name}`,
   everyone: 'Everyone',
   addNew: '+ New',
   saveAsGroup: 'Save as group',
