@@ -124,3 +124,16 @@ test('picked services offer to open their link', async ({ page }) => {
   await page.getByRole('button', { name: /^Spotify/ }).click();
   await expect(links).toHaveText(['In Deezer öffnen']);
 });
+
+test('regression: editing or removing an unpicked contact keeps services picked by hand', async ({ page }) => {
+  await seed(page);
+  await findSavior(page);
+  await page.getByRole('button', { name: /^TIDAL/ }).click();
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  await page.getByRole('button', { name: 'Alex bearbeiten' }).click();
+  await page.getByRole('combobox').selectOption('appleMusic');
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await page.getByRole('button', { name: 'Sam entfernen' }).click();
+  await page.getByRole('button', { name: 'Fertig' }).click();
+  await expect(page.getByRole('link', { name: /öffnen$/ })).toHaveText(['In TIDAL öffnen']);
+});

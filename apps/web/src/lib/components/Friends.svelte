@@ -35,7 +35,8 @@
     if (panel === 'invite') { invite(value); return; }
     if (panel === 'edit') {
       updateFriend(editing, { name: value, platform });
-      pick([...new Set(selected.map(other => other === editing ? value : other))]);
+      // Services picked by hand stay unless a picked contact changed
+      if (selected.includes(editing)) pick([...new Set(selected.map(other => other === editing ? value : other))]);
       editing = '';
       return;
     }
@@ -51,7 +52,7 @@
 
   function remove(friend: string) {
     removeFriend(friend);
-    pick(selected.filter(other => other !== friend));
+    if (selected.includes(friend)) pick(selected.filter(other => other !== friend));
     if (editing === friend) editing = '';
     // Without contacts there is nothing left to edit, and no button to leave
     if (!social.friends.length) panel = '';
