@@ -1,6 +1,6 @@
 import type { Conversion } from '@app/shared';
 import { z } from 'zod';
-import { clientToken, ResolutionError, type Session } from './providers';
+import { clientToken, https, ResolutionError, type Session } from './providers';
 
 // Spotify has no open catalogue API. Songs and albums are found through ListenBrainz, which maps
 // artist and title to Spotify track IDs, and confirmed on Spotify's own pages. Only finding podcasts
@@ -39,7 +39,7 @@ export async function spotifyCandidates(source: { title: string; artist: string 
         throw error;
       }
       if (normalizedTitle(metadata.title) !== normalizedTitle(source.title)) return null;
-      return { title: metadata.title, url, artworkUrl: metadata.thumbnail_url?.startsWith('https://') ? metadata.thumbnail_url : null };
+      return { title: metadata.title, url, artworkUrl: https(metadata.thumbnail_url) };
     }));
     candidates.push(...batch.filter(candidate => candidate !== null));
   }

@@ -4,13 +4,12 @@ import { and, eq, gt, isNull, lt, sql } from 'drizzle-orm';
 import { type Context, Hono } from 'hono';
 import type { z } from 'zod';
 import { altchaChallenge, altchaSolved } from '../lib/altcha';
-import { currentUser, generateToken, hashToken, mayLogIn, sessionExpiry, toUser, userColumns } from '../lib/auth';
+import { CODE_ATTEMPTS, codeExpiry, currentUser, generateToken, hashToken, mayLogIn, sessionExpiry, sixDigitCode, toUser, userColumns } from '../lib/auth';
 import { t } from '../lib/i18n';
 import { sendMail } from '../lib/mail';
 import { clientIp, rateLimit } from '../lib/rate-limit';
 
 const MINUTE = 60 * 1000;
-const CODE_ATTEMPTS = 5;
 const mailsPerAddress = rateLimit('mails-per-address', 5, 60 * MINUTE);
 const mailsPerIp = rateLimit('mails-per-ip', 20, 60 * MINUTE);
 const codeChecksPerIp = rateLimit('code-checks-per-ip', 30, 15 * MINUTE);
@@ -29,8 +28,6 @@ export const tooMany = (c: Context) => c.json({ error: t(c).tooManyAttempts }, 4
 // App only, with the session token as bearer. The email stays inside the API:
 // others see an account's name and service, and only by its random id.
 export function accountRoutes(db: Database) {
-  const authed = async (c: Context) => currentUser(db, c);
-
   return new Hono()
     .get('/altcha', async c => {
       c.header('Cache-Control', 'no-store');
@@ -46,8 +43,8 @@ export function accountRoutes(db: Database) {
       if (!(await mayLogIn(db, input.email))) return c.json({ error: t(c).signupClosed }, 403);
       // Expired codes go, so the table doesn't keep every code ever sent
       await db.delete(loginCodes).where(lt(loginCodes.expiresAt, new Date()));
-      const code = String(crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000).padStart(6, '0');
-      await db.insert(loginCodes).values({ email: input.email, codeHash: hashToken(code), expiresAt: new Date(Date.now() + 15 * MINUTE) });
+      const code = sixDigitCode();
+      await db.insert(loginCodes).values({ email: input.email, codeHash: hashToken(code), expiresAt: codeExpiry() });
       await sendMail({ to: input.email, subject: t(c).loginCodeSubject(code), text: t(c).loginCodeText(code) });
       return c.json({ ok: true });
     })
@@ -81,19 +78,19 @@ export function accountRoutes(db: Database) {
     })
 
     .post('/auth/logout', async c => {
-      const user = await authed(c);
+      const user = await currentUser(db, c);
       if (user) await db.delete(sessions).where(eq(sessions.id, user.sessionId));
       return c.json({ ok: true });
     })
 
     .get('/me', async c => {
-      const user = await authed(c);
+      const user = await currentUser(db, c);
       if (!user) return c.json({ error: t(c).loginRequired }, 401);
       return c.json({ user: toUser(user) });
     })
 
     .patch('/me', async c => {
-      const user = await authed(c);
+      const user = await currentUser(db, c);
       if (!user) return c.json({ error: t(c).loginRequired }, 401);
       const input = await body(c, profileUpdateSchema);
       if (!input) return c.json({ error: t(c).feedbackIncomplete }, 400);
@@ -107,14 +104,14 @@ export function accountRoutes(db: Database) {
 
     // Sessions and the saved contacts go with it (on delete cascade)
     .delete('/me', async c => {
-      const user = await authed(c);
+      const user = await currentUser(db, c);
       if (!user) return c.json({ error: t(c).loginRequired }, 401);
       await db.delete(users).where(eq(users.id, user.id));
       return c.json({ ok: true });
     })
 
     .get('/me/social', async c => {
-      const user = await authed(c);
+      const user = await currentUser(db, c);
       if (!user) return c.json({ error: t(c).loginRequired }, 401);
       const [saved] = await db.select().from(socials).where(eq(socials.userId, user.id));
       c.header('Cache-Control', 'no-store');
@@ -124,7 +121,7 @@ export function accountRoutes(db: Database) {
     // Saves only on top of the revision the app last saw. Otherwise another
     // device was faster: the answer carries its version, and the app takes it.
     .put('/me/social', async c => {
-      const user = await authed(c);
+      const user = await currentUser(db, c);
       if (!user) return c.json({ error: t(c).loginRequired }, 401);
       const input = await body(c, socialUpdateSchema);
       if (!input) return c.json({ error: t(c).feedbackIncomplete }, 400);

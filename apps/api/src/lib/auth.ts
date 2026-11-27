@@ -13,6 +13,11 @@ export const hashToken = (token: string) => new Bun.CryptoHasher('sha256').updat
 
 export const sessionExpiry = () => new Date(Date.now() + SESSION_DAYS * DAY);
 
+// Codes sent by mail or SMS: six digits, valid for 15 minutes, CODE_ATTEMPTS guesses
+export const CODE_ATTEMPTS = 5;
+export const sixDigitCode = () => String(crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000).padStart(6, '0');
+export const codeExpiry = () => new Date(Date.now() + 15 * 60 * 1000);
+
 export const userColumns = { id: users.id, email: users.email, name: users.name, platform: users.platform, phoneKey: users.phoneKey };
 
 type UserRow = { id: string; email: string; name: string | null; platform: string | null; phoneKey: string | null };

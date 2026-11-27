@@ -3,7 +3,7 @@ import { type Database, phoneCodes, users } from '@app/db';
 import { discoverEvaluateSchema, phoneSchema, phoneVerifySchema } from '@app/shared';
 import { and, eq, gt, isNotNull, lt, ne, sql } from 'drizzle-orm';
 import { type Context, Hono } from 'hono';
-import { currentUser, hashToken, toUser, userColumns } from '../lib/auth';
+import { CODE_ATTEMPTS, codeExpiry, currentUser, hashToken, sixDigitCode, toUser, userColumns } from '../lib/auth';
 import { t } from '../lib/i18n';
 import { blindEvaluate, oprfReady, phoneKey } from '../lib/oprf';
 import { clientIp, rateLimit } from '../lib/rate-limit';
@@ -13,7 +13,6 @@ import { body, tooMany } from './accounts';
 
 const MINUTE = 60 * 1000;
 const DAY = 24 * 60 * MINUTE;
-const CODE_ATTEMPTS = 5;
 // Each SMS costs money and reaches a person: few per account, per number and per address
 const smsPerUser = rateLimit('sms-per-user', 3, 60 * MINUTE);
 const smsPerNumber = rateLimit('sms-per-number', 3, 60 * MINUTE);
@@ -64,8 +63,8 @@ export function phoneRoutes(db: Database) {
       if (!(await smsPerNumber.hit(db, key))) return tooMany(c);
       // Expired codes go, so their keys don't outlive the confirmation
       await db.delete(phoneCodes).where(lt(phoneCodes.expiresAt, new Date()));
-      const code = String(crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000).padStart(6, '0');
-      await db.insert(phoneCodes).values({ userId: user.id, phoneKey: key, codeHash: hashToken(code), expiresAt: new Date(Date.now() + 15 * MINUTE) });
+      const code = sixDigitCode();
+      await db.insert(phoneCodes).values({ userId: user.id, phoneKey: key, codeHash: hashToken(code), expiresAt: codeExpiry() });
       try {
         await sendSms(input.phone, t(c).phoneCodeText(code));
       } catch (error) {
