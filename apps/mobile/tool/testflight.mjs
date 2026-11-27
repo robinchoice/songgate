@@ -1,10 +1,7 @@
-// Hands an uploaded iOS build to TestFlight groups and submits it for the beta
-// review when one of them is external. Every assignment mails the group's testers,
-// so external groups only get release builds (AGENTS.md, "Deploy"). The build only
-// counts as delivered once it is IN_BETA_TESTING (READY_FOR_BETA_TESTING while the
-// internal groups have no testers) and visible in every internal group; external groups
-// follow after that. Each step is checked first, so a run that failed halfway can be
-// repeated.
+// Hands an uploaded iOS build to internal TestFlight groups. Every assignment mails the
+// group's testers. The build only counts as delivered once it is IN_BETA_TESTING
+// (READY_FOR_BETA_TESTING while the groups have no testers) and visible in every group.
+// Each step is checked first, so a run that failed halfway can be repeated.
 //
 //   ASC_KEY_ID=… ASC_ISSUER_ID=… ASC_KEY_P8=<base64 .p8> node tool/testflight.mjs [--quiet] <build number> <group>…
 //
@@ -50,12 +47,11 @@ const groups = names.map(name => {
   if (!group) throw new Error(`TestFlight group "${name}" not found`);
   return group;
 });
-const internals = groups.filter(group => group.attributes.isInternalGroup);
-const externals = groups.filter(group => !group.attributes.isInternalGroup);
-if (!internals.length) throw new Error('Name at least one internal group: external testers only get builds that work internally');
-// Without internal testers a build stays READY_FOR_BETA_TESTING and never becomes IN_BETA_TESTING
-const nobodyInternal = (await Promise.all(internals.map(group => api('GET', `/betaGroups/${group.id}/betaTesters?limit=1`)))).every(page => !page.data.length);
-if (nobodyInternal) console.log('The internal groups have no testers: READY_FOR_BETA_TESTING counts as delivered');
+const external = groups.find(group => !group.attributes.isInternalGroup);
+if (external) throw new Error(`TestFlight group "${external.attributes.name}" is external: builds only go to internal groups`);
+// Without testers in the groups a build stays READY_FOR_BETA_TESTING and never becomes IN_BETA_TESTING
+const noTesters = (await Promise.all(groups.map(group => api('GET', `/betaGroups/${group.id}/betaTesters?limit=1`)))).every(page => !page.data.length);
+if (noTesters) console.log('The groups have no testers: READY_FOR_BETA_TESTING counts as delivered');
 
 const buildQuery = `/builds?filter[app]=${app.id}&filter[version]=${encodeURIComponent(number)}&filter[preReleaseVersion.platform]=IOS`;
 const inGroup = async group => (await api('GET', `${buildQuery}&filter[betaGroups]=${group.id}`)).data.length > 0;
@@ -81,7 +77,7 @@ for (;;) {
       throw new Error(`Build ${number} cannot be tested internally: ${internalState}; check TestFlight and export compliance`);
     }
     let visible = true;
-    for (const group of internals) {
+    for (const group of groups) {
       if (await inGroup(group)) continue;
       visible = false;
       // Groups with automatic distribution pick the build up themselves
@@ -93,26 +89,11 @@ for (;;) {
         if (error.status !== 404) throw error;
       }
     }
-    if (visible && (internalState === 'IN_BETA_TESTING' || (nobodyInternal && internalState === 'READY_FOR_BETA_TESTING'))) break;
+    if (visible && (internalState === 'IN_BETA_TESTING' || (noTesters && internalState === 'READY_FOR_BETA_TESTING'))) break;
   }
   if (Date.now() >= deadline) throw new Error(`Build ${number} was not processed and visible internally within an hour`);
   console.log(`Waiting for build ${number} to be processed and visible internally …`);
   await wait();
 }
-for (const group of internals) console.log(`Build ${number} is in "${group.attributes.name}"`);
+for (const group of groups) console.log(`Build ${number} is in "${group.attributes.name}"`);
 
-if (externals.length) {
-  for (const group of externals) {
-    if (!(await inGroup(group))) await api('POST', `/betaGroups/${group.id}/relationships/builds`, { data: [{ type: 'builds', id: build.id }] });
-    console.log(`Build ${number} is in "${group.attributes.name}"`);
-  }
-  const state = (await api('GET', `/builds/${build.id}/buildBetaDetail`)).data.attributes.externalBuildState;
-  if (state === 'READY_FOR_BETA_SUBMISSION') {
-    await api('POST', '/betaAppReviewSubmissions', { data: { type: 'betaAppReviewSubmissions', relationships: { build: { data: { type: 'builds', id: build.id } } } } });
-    console.log(`Build ${number} is submitted for the beta review; Apple decides on external availability`);
-  } else if (['WAITING_FOR_BETA_REVIEW', 'IN_BETA_REVIEW', 'BETA_APPROVED', 'READY_FOR_BETA_TESTING', 'IN_BETA_TESTING'].includes(state)) {
-    console.log(`Build ${number} beta review: ${state}`);
-  } else {
-    throw new Error(`Build ${number} cannot be submitted for the beta review: ${state}; check TestFlight metadata and export compliance`);
-  }
-}

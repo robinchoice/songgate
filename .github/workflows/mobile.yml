@@ -1,8 +1,8 @@
 name: Mobile
 
 # Every change to the app gets analyze and test. On main: iOS → TestFlight group
-# „MusicLink Internal“, Android → signed AAB/APK as artifacts and optional internal Play upload. Pushed release tags `v*` also reach
-# the external group „MusicLink V1“, manual runs never (AGENTS.md, "Deploy"). macOS minutes are free only for public repos.
+# „MusicLink Internal“, Android → signed AAB/APK as artifacts and optional internal Play upload. Pushed release tags `v*`
+# build both again, the iOS build also only goes to „MusicLink Internal“ (AGENTS.md, "Deploy"). macOS minutes are free only for public repos.
 # Release builds are obfuscated, the symbols for `flutter symbolize` are kept as an artifact for
 # 90 days (AGENTS.md, "Release builds"). They never go into the bundle or the repo.
 
@@ -236,9 +236,7 @@ jobs:
             "$HOME/Library/MobileDevice/Provisioning Profiles/MusicLink-App.mobileprovision" \
             "$HOME/Library/MobileDevice/Provisioning Profiles/MusicLink-Share.mobileprovision"
 
-  # Every build goes to the internal group. Only pushed release tags reach the external group
-  # and its beta review: every build given to a group mails its testers. Manual runs stay
-  # internal, even when started on a tag.
+  # Every build goes to the internal group only, release tags included.
   testflight:
     needs: ios
     runs-on: ubuntu-latest
@@ -248,16 +246,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Build an TestFlight-Gruppen geben
+      - name: Build an die interne TestFlight-Gruppe geben
         env:
           ASC_KEY_ID: ${{ vars.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ vars.ASC_ISSUER_ID }}
           ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
-          RELEASE: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
-        run: |
-          groups=("MusicLink Internal")
-          [ "$RELEASE" = true ] && groups+=("MusicLink V1")
-          node tool/testflight.mjs "$GITHUB_RUN_NUMBER" "${groups[@]}"
+        run: node tool/testflight.mjs "$GITHUB_RUN_NUMBER" "MusicLink Internal"
 
   android:
     needs: [check, android-build]

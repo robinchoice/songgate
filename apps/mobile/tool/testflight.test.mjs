@@ -62,7 +62,7 @@ globalThis.fetch = async (url, options) => {
   } else if (path === '/builds/build-42/buildBetaDetail') {
     detailChecks++;
     const internalBuildState = scenario.internalState || (scenario.waitingInternal && detailChecks === 1 ? 'IN_EXPORT_COMPLIANCE_REVIEW' : assigned.has('internal') && !scenario.noInternalTesters ? 'IN_BETA_TESTING' : 'READY_FOR_BETA_TESTING');
-    data = { id: 'detail-42', attributes: { internalBuildState, externalBuildState: scenario.reviewState || 'READY_FOR_BETA_SUBMISSION' } };
+    data = { id: 'detail-42', attributes: { internalBuildState } };
   } else {
     throw new Error('Unexpected request: ' + url);
   }
@@ -91,14 +91,7 @@ function run(scenario) {
 }
 
 const internalOnly = ['42', 'Internal'];
-const release = ['42', 'Internal', 'External'];
 const assignInternal = { method: 'POST', path: '/betaGroups/internal/relationships/builds', body: { data: [{ type: 'builds', id: 'build-42' }] } };
-const assignExternal = { method: 'POST', path: '/betaGroups/external/relationships/builds', body: { data: [{ type: 'builds', id: 'build-42' }] } };
-const submit = {
-  method: 'POST',
-  path: '/betaAppReviewSubmissions',
-  body: { data: { type: 'betaAppReviewSubmissions', relationships: { build: { data: { type: 'builds', id: 'build-42' } } } } },
-};
 
 test('internal build waits for processing, then assigns it and waits for IN_BETA_TESTING', () => {
   const result = run({ args: internalOnly, delayed: true });
@@ -134,63 +127,37 @@ test('--quiet turns off notifications once', () => {
   assert.equal(result.writes[0].path, '/buildBetaDetails/detail-42');
 });
 
-test('release assigns internally first, then externally, and submits for the review', () => {
-  const result = run({ args: release });
+test('without internal testers READY_FOR_BETA_TESTING is enough', () => {
+  const result = run({ args: internalOnly, assigned: ['internal'], noInternalTesters: true });
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(result.writes, [assignInternal, assignExternal, submit]);
-});
-
-test('without internal testers READY_FOR_BETA_TESTING is enough for the release', () => {
-  const result = run({ args: release, assigned: ['internal'], noInternalTesters: true });
-  assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(result.writes, [assignExternal, submit]);
+  assert.deepEqual(result.writes, []);
   assert.match(result.stdout, /POLLS 1/);
 });
 
 test('with internal testers READY_FOR_BETA_TESTING is waited for', () => {
-  const result = run({ args: release, assigned: ['internal'], internalState: 'READY_FOR_BETA_TESTING' });
+  const result = run({ args: internalOnly, assigned: ['internal'], internalState: 'READY_FOR_BETA_TESTING' });
   assert.equal(result.status, 1, result.stderr);
   assert.match(result.stderr, /within an hour/);
   assert.deepEqual(result.writes, []);
 });
 
-test('retry after the assignments only submits the pending review', () => {
-  const result = run({ args: release, assigned: ['internal', 'external'] });
-  assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(result.writes, [submit]);
-});
-
-for (const reviewState of ['WAITING_FOR_BETA_REVIEW', 'IN_BETA_REVIEW', 'BETA_APPROVED', 'READY_FOR_BETA_TESTING', 'IN_BETA_TESTING']) {
-  test(`retry with ${reviewState} neither assigns nor submits again`, () => {
-    const result = run({ args: release, assigned: ['internal', 'external'], reviewState });
-    assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(result.writes, []);
-  });
-}
-
 for (const [scenario, error] of [
-  [{ args: ['42', 'External'] }, /at least one internal group/],
+  [{ args: ['42', 'External'] }, /"External" is external/],
+  [{ args: ['42', 'Internal', 'External'] }, /"External" is external/],
   [{ args: ['42', 'Missing'] }, /"Missing" not found/],
-  [{ args: release, invalid: true }, /Build 42 is INVALID/],
-  [{ args: release, internalState: 'MISSING_EXPORT_COMPLIANCE' }, /cannot be tested internally: MISSING_EXPORT_COMPLIANCE/],
-  [{ args: release, noBuild: true }, /within an hour/],
-  [{ args: release, assigned: ['internal'], neverVisible: true }, /within an hour/],
-  [{ args: release, apiFailure: true }, /403 Denied/],
+  [{ args: internalOnly, invalid: true }, /Build 42 is INVALID/],
+  [{ args: internalOnly, internalState: 'MISSING_EXPORT_COMPLIANCE' }, /cannot be tested internally: MISSING_EXPORT_COMPLIANCE/],
+  [{ args: internalOnly, noBuild: true }, /within an hour/],
+  [{ args: internalOnly, assigned: ['internal'], neverVisible: true }, /within an hour/],
+  [{ args: internalOnly, apiFailure: true }, /403 Denied/],
 ]) {
   test(`fails without external writes for ${JSON.stringify(scenario)}`, () => {
     const result = run(scenario);
     assert.equal(result.status, 1, result.stderr);
     assert.match(result.stderr, error);
-    assert.equal(result.writes.filter(write => write.path.includes('external') || write.path === '/betaAppReviewSubmissions').length, 0);
+    assert.equal(result.writes.filter(write => write.path.includes('external')).length, 0);
   });
 }
-
-test('missing review prerequisites fail instead of reporting a successful release', () => {
-  const result = run({ args: release, assigned: ['internal', 'external'], reviewState: 'MISSING_EXPORT_COMPLIANCE' });
-  assert.equal(result.status, 1, result.stderr);
-  assert.match(result.stderr, /cannot be submitted.*MISSING_EXPORT_COMPLIANCE/);
-  assert.deepEqual(result.writes, []);
-});
 
 test('missing arguments print the usage', () => {
   const result = run({ args: ['42'] });
