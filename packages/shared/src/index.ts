@@ -178,7 +178,7 @@ export const socialSchema = z.object({
 });
 export type Social = z.infer<typeof socialSchema>;
 // The revision the client last saw; the API refuses to overwrite a newer one
-export const socialUpdateSchema = z.object({ social: socialSchema, revision: z.number().int().min(0) });
+export const socialUpdateSchema = z.object({ social: socialSchema, revision: z.number().int().min(0).max(2_147_483_646) });
 
 // Contact discovery by phone number, see apps/api/src/lib/oprf.ts. Numbers travel only in E.164.
 export const phoneSchema = z.object({ phone: z.string().regex(/^\+[1-9]\d{6,14}$/, 'phoneInvalid') });

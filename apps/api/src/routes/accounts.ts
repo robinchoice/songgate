@@ -44,6 +44,8 @@ export function accountRoutes(db: Database) {
       if (!(await altchaSolved(db, input.altcha))) return c.json({ error: t(c).altchaFailed }, 403);
       if (!(await mailsPerIp.hit(db, clientIp(c))) || !(await mailsPerAddress.hit(db, input.email))) return tooMany(c);
       if (!(await mayLogIn(db, input.email))) return c.json({ error: t(c).signupClosed }, 403);
+      // Expired codes go, so the table doesn't keep every code ever sent
+      await db.delete(loginCodes).where(lt(loginCodes.expiresAt, new Date()));
       const code = String(crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000).padStart(6, '0');
       await db.insert(loginCodes).values({ email: input.email, codeHash: hashToken(code), expiresAt: new Date(Date.now() + 15 * MINUTE) });
       await sendMail({ to: input.email, subject: t(c).loginCodeSubject(code), text: t(c).loginCodeText(code) });

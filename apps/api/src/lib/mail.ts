@@ -30,6 +30,8 @@ type Mail = {
 
 export async function sendMail({ to, subject, text, replyTo, attachments }: Mail) {
   if (!transport) {
+    // In production the log would hand out login codes
+    if (process.env.NODE_ENV === 'production') throw new Error('SMTP_HOST is required in production, otherwise login codes would end up in the log');
     console.log(`[mail] To ${to}: ${subject}\n${text}`);
     return;
   }

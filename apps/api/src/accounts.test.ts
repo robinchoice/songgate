@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, expect, spyOn, test } from 'bun:test';
-import { createDb, migrateDb, sessions, socials, users } from '@app/db';
+import { createDb, loginCodes, migrateDb, sessions, socials, users } from '@app/db';
 import { solveChallenge } from 'altcha-lib';
 import { deriveKey } from 'altcha-lib/algorithms/pbkdf2';
 import { eq } from 'drizzle-orm';
@@ -91,6 +91,26 @@ test('a wrong code fails and five wrong guesses use the code up', async () => {
   expect((await call('/auth/code/verify', { method: 'POST', body: { email, code } })).status).toBe(400);
 });
 
+test('regression: production without SMTP_HOST does not log a login code', async () => {
+  const email = newEmail();
+  process.env.SIGNUP_ALLOWLIST = email;
+  const mode = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'production';
+  try {
+    expect((await call('/auth/code', { method: 'POST', body: { email, altcha: await altcha() } })).status).toBe(500);
+    expect(mailedCode(email)).toBeUndefined();
+  } finally {
+    if (mode === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = mode;
+  }
+});
+
+test('regression: expired login codes are deleted', async () => {
+  const [expired] = await db.insert(loginCodes).values({ email: newEmail(), codeHash: 'x', expiresAt: new Date(Date.now() - 1000) }).returning({ id: loginCodes.id });
+  await logIn();
+  expect(await db.select().from(loginCodes).where(eq(loginCodes.id, expired!.id))).toEqual([]);
+});
+
 test('a code works once', async () => {
   const email = newEmail();
   process.env.SIGNUP_ALLOWLIST = email;
@@ -145,6 +165,11 @@ test('invalid contacts are refused', async () => {
   const { token } = await logIn();
   const bad = { friends: [{ name: '', platform: 'spotify' }], groups: [] };
   expect((await call('/me/social', { method: 'PUT', token, body: { social: bad, revision: 0 } })).status).toBe(400);
+});
+
+test('regression: a revision beyond the database integer is refused, not a server error', async () => {
+  const { token } = await logIn();
+  expect((await call('/me/social', { method: 'PUT', token, body: { social: { friends: [], groups: [] }, revision: 3_000_000_000 } })).status).toBe(400);
 });
 
 test('deleting the account removes profile, sessions and contacts at once', async () => {
