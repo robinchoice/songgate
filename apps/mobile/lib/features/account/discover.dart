@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -106,28 +106,29 @@ Uint8List discoverBoxKey(List<int> output) => SHA256Digest().process(
   Uint8List.fromList([...utf8.encode('Songgate discover box'), ...output]),
 );
 
+/// AES-GCM runs in the operating system (CryptoKit on iOS, javax.crypto on
+/// Android), so the app ships no encryption of its own; App Store Connect
+/// counts it as exempt (AGENTS.md, "Pitfalls").
+const _crypto = MethodChannel('org.musiclink.prototype/crypto');
+
 /// The profile `{id, name, platform}` in a directory box
 /// (base64 of nonce(12) || ciphertext || tag(16), AES-256-GCM), null when
 /// [output] does not open it or the content is no profile.
-Map<String, Object?>? openDirectoryBox(List<int> output, String box) {
+Future<Map<String, Object?>?> openDirectoryBox(
+  List<int> output,
+  String box,
+) async {
   try {
     final bytes = base64Decode(box);
     if (bytes.length < 12 + 16) return null;
-    final cipher = GCMBlockCipher(AESEngine())
-      ..init(
-        false,
-        AEADParameters(
-          KeyParameter(discoverBoxKey(output)),
-          128,
-          Uint8List.fromList(bytes.sublist(0, 12)),
-          Uint8List(0),
-        ),
-      );
-    final plain = cipher.process(Uint8List.fromList(bytes.sublist(12)));
+    final plain = await _crypto.invokeMethod<Uint8List>('openAesGcm', {
+      'key': discoverBoxKey(output),
+      'nonce': Uint8List.fromList(bytes.sublist(0, 12)),
+      'sealed': Uint8List.fromList(bytes.sublist(12)),
+    });
+    if (plain == null) return null;
     final json = jsonDecode(utf8.decode(plain));
     return json is Map<String, dynamic> ? json : null;
-  } on InvalidCipherTextException {
-    return null;
   } on FormatException {
     return null;
   }
@@ -279,7 +280,7 @@ class Discovery {
         final output = hexBytes(hex);
         final box = boxes[discoverTag(output)];
         if (box == null) continue;
-        final profile = openDirectoryBox(output, box);
+        final profile = await openDirectoryBox(output, box);
         if (profile
             case {'id': final String id, 'platform': final String platform}
             when id != ownId &&

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +14,7 @@ import 'package:musiclink/features/account/oprf.dart';
 import 'package:musiclink/features/friends/discover_screen.dart';
 import 'package:musiclink/features/friends/friends_screen.dart';
 import 'package:musiclink/features/friends/social.dart';
+import 'package:pointycastle/export.dart';
 
 import 'account_test.dart' hide main;
 
@@ -37,6 +39,7 @@ String e164(int i) => '+49151${10000000 + i}';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const preferences = MethodChannel('org.musiclink.prototype/preferences');
+  const crypto = MethodChannel('org.musiclink.prototype/crypto');
   late String? stored;
   late FakeServer server;
   late FakeContacts contacts;
@@ -68,11 +71,34 @@ void main() {
           if (call.method == 'setSocial') stored = call.arguments as String;
           return null;
         });
+    // What CryptoKit and javax.crypto do on the devices
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(crypto, (call) async {
+          expect(call.method, 'openAesGcm');
+          final arguments = call.arguments as Map<Object?, Object?>;
+          final cipher = GCMBlockCipher(AESEngine())
+            ..init(
+              false,
+              AEADParameters(
+                KeyParameter(arguments['key'] as Uint8List),
+                128,
+                arguments['nonce'] as Uint8List,
+                Uint8List(0),
+              ),
+            );
+          try {
+            return cipher.process(arguments['sealed'] as Uint8List);
+          } on InvalidCipherTextException {
+            return null;
+          }
+        });
   });
-  tearDown(
-    () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(preferences, null),
-  );
+  tearDown(() {
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(preferences, null);
+    messenger.setMockMethodCallHandler(crypto, null);
+  });
 
   /// Logged in, with the own number confirmed or not
   void logIn({bool discoverable = true, String? ownPhone}) {
@@ -391,20 +417,40 @@ void main() {
       expect(find.text('Meine Einladung teilen'), findsOneWidget);
     });
 
-    test('regression: a wrong output cannot open a box', () {
+    test(
+      'regression: the app ships no encryption of its own, the OS opens boxes',
+      () {
+        // ITSAppUsesNonExemptEncryption is false in Info.plist only while this holds
+        final ciphers = RegExp(
+          r'\b(AESEngine|GCMBlockCipher|BlockCipher|StreamCipher)\b',
+        );
+        final offenders = Directory('lib')
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((file) => file.path.endsWith('.dart'))
+            .where((file) => ciphers.hasMatch(file.readAsStringSync()))
+            .map((file) => file.path);
+        expect(offenders, isEmpty);
+      },
+    );
+
+    test('regression: a wrong output cannot open a box', () async {
       final output = server.keyOf(e164(1));
       final box = server.sealBox(output, {
         'id': lisaId,
         'name': 'Lea',
         'platform': 'appleMusic',
       });
-      expect(openDirectoryBox(hexBytes(output), box), {
+      expect(await openDirectoryBox(hexBytes(output), box), {
         'id': lisaId,
         'name': 'Lea',
         'platform': 'appleMusic',
       });
-      expect(openDirectoryBox(hexBytes(server.keyOf(e164(2))), box), isNull);
-      expect(openDirectoryBox(hexBytes(output), 'not base64!'), isNull);
+      expect(
+        await openDirectoryBox(hexBytes(server.keyOf(e164(2))), box),
+        isNull,
+      );
+      expect(await openDirectoryBox(hexBytes(output), 'not base64!'), isNull);
     });
 
     test(

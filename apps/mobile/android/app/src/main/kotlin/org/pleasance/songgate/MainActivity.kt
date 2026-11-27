@@ -15,6 +15,10 @@ import android.os.Build
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import org.json.JSONObject
+import javax.crypto.AEADBadTagException
+import javax.crypto.Cipher
+import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.SecretKeySpec
 
 class MainActivity : FlutterActivity() {
     private var channel: MethodChannel? = null
@@ -53,6 +57,17 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
                 else -> result.notImplemented()
+            }
+        }
+        // AES-GCM through javax.crypto, so the app ships no encryption of its own: opens a contact directory box, null when the key does not fit
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "org.musiclink.prototype/crypto").setMethodCallHandler { call, result ->
+            if (call.method != "openAesGcm") return@setMethodCallHandler result.notImplemented()
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(call.argument<ByteArray>("key"), "AES"), GCMParameterSpec(128, call.argument<ByteArray>("nonce")))
+            try {
+                result.success(cipher.doFinal(call.argument<ByteArray>("sealed")))
+            } catch (wrongKey: AEADBadTagException) {
+                result.success(null)
             }
         }
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "org.musiclink.prototype/share")
