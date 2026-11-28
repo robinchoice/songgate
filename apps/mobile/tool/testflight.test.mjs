@@ -45,7 +45,7 @@ globalThis.fetch = async (url, options) => {
     ];
   } else if (path.startsWith('/betaGroups/') && path.endsWith('/betaTesters')) {
     assert.equal(path, '/betaGroups/internal/betaTesters');
-    data = scenario.noInternalTesters ? [] : [{ id: 'tester' }];
+    data = scenario.noTesters ? [] : [{ id: 'tester' }];
   } else if (path === '/builds') {
     assert.equal(query.get('filter[app]'), 'app');
     assert.equal(query.get('filter[version]'), '42');
@@ -61,7 +61,7 @@ globalThis.fetch = async (url, options) => {
     }
   } else if (path === '/builds/build-42/buildBetaDetail') {
     detailChecks++;
-    const internalBuildState = scenario.internalState || (scenario.waitingInternal && detailChecks === 1 ? 'IN_EXPORT_COMPLIANCE_REVIEW' : assigned.has('internal') && !scenario.noInternalTesters ? 'IN_BETA_TESTING' : 'READY_FOR_BETA_TESTING');
+    const internalBuildState = scenario.internalState || (scenario.waitingInternal && detailChecks === 1 ? 'IN_EXPORT_COMPLIANCE_REVIEW' : assigned.has('internal') && !scenario.noTesters ? 'IN_BETA_TESTING' : 'READY_FOR_BETA_TESTING');
     data = { id: 'detail-42', attributes: { internalBuildState } };
   } else {
     throw new Error('Unexpected request: ' + url);
@@ -127,14 +127,14 @@ test('--quiet turns off notifications once', () => {
   assert.equal(result.writes[0].path, '/buildBetaDetails/detail-42');
 });
 
-test('without internal testers READY_FOR_BETA_TESTING is enough', () => {
-  const result = run({ args: internalOnly, assigned: ['internal'], noInternalTesters: true });
+test('without testers READY_FOR_BETA_TESTING is enough', () => {
+  const result = run({ args: internalOnly, assigned: ['internal'], noTesters: true });
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.writes, []);
   assert.match(result.stdout, /POLLS 1/);
 });
 
-test('with internal testers READY_FOR_BETA_TESTING is waited for', () => {
+test('with testers READY_FOR_BETA_TESTING is waited for', () => {
   const result = run({ args: internalOnly, assigned: ['internal'], internalState: 'READY_FOR_BETA_TESTING' });
   assert.equal(result.status, 1, result.stderr);
   assert.match(result.stderr, /within an hour/);

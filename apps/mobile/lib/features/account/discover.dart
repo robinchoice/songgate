@@ -123,8 +123,8 @@ Future<Map<String, Object?>?> openDirectoryBox(
     if (bytes.length < 12 + 16) return null;
     final plain = await _crypto.invokeMethod<Uint8List>('openAesGcm', {
       'key': discoverBoxKey(output),
-      'nonce': Uint8List.fromList(bytes.sublist(0, 12)),
-      'sealed': Uint8List.fromList(bytes.sublist(12)),
+      'nonce': bytes.sublist(0, 12),
+      'sealed': bytes.sublist(12),
     });
     if (plain == null) return null;
     final json = jsonDecode(utf8.decode(plain));

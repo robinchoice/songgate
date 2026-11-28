@@ -177,7 +177,8 @@ export const socialSchema = z.object({
   groups: z.array(z.object({ name: friendName, members: z.array(friendName).max(500) })).max(200),
 });
 export type Social = z.infer<typeof socialSchema>;
-// The revision the client last saw; the API refuses to overwrite a newer one
+// The revision the client last saw; the API refuses to overwrite a newer one.
+// At most int4 max − 1, since the API stores revision + 1
 export const socialUpdateSchema = z.object({ social: socialSchema, revision: z.number().int().min(0).max(2_147_483_646) });
 
 // Contact discovery by phone number, see apps/api/src/lib/oprf.ts. Numbers travel only in E.164.
