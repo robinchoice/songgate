@@ -422,7 +422,7 @@ void main() {
       () {
         // ITSAppUsesNonExemptEncryption is false in Info.plist only while this holds
         final ciphers = RegExp(
-          r'\b(AESEngine|GCMBlockCipher|BlockCipher|StreamCipher)\b',
+          r'\b\w*(Cipher|Engine|Poly1305)\b|package:(cryptography|encrypt)\b',
         );
         final offenders = Directory('lib')
             .listSync(recursive: true)
